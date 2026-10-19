@@ -1,6 +1,15 @@
 <?php
 include "../koneksi.php"; // koneksi ke database
-$akreditasi = query("SELECT * FROM akreditasi");
+$akreditasi = query("SELECT
+    akreditasi.*,
+    ps_prodi.nama_program_studi,
+    ps_lembaga.nama_lembaga,
+    ps_jenis_akreditasi.jenis_akreditasi
+FROM akreditasi
+LEFT JOIN program_studi AS ps_prodi ON ps_prodi.id_prodi = akreditasi.id_prodi
+LEFT JOIN lembaga AS ps_lembaga ON ps_lembaga.id_lembaga = akreditasi.id_lembaga
+LEFT JOIN jenis_akreditasi AS ps_jenis_akreditasi ON ps_jenis_akreditasi.id_jenis = akreditasi.id_jenis
+WHERE akreditasi.akreditasi = 'Program Studi'");
 
 // Pagination setup
 $limit = 10; 
