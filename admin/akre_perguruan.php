@@ -1,5 +1,6 @@
 <?php
 include "../koneksi.php";
+/** @var mysqli $koneksi */
 $akreditasi_perguruan = query("
     SELECT 
         ap.id_perguruan,
@@ -421,7 +422,15 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                         <div class="modal-body">
                                 <div class="mb-3">
                                     <label for="peringkat" class="form-label">Peringkat</label>
-                                    <input type="text" class="form-control" name="peringkat" required>
+                                    <select class="form-select" name="peringkat" id="peringkat" required>
+                                        <option value="" selected disabled>-- Pilih Peringkat --</option>
+                                        <option value="Unggul">Unggul</option>
+                                        <option value="Baik Sekali">Baik Sekali</option>
+                                        <option value="Baik">Baik</option>
+                                        <option value="Cukup Sekali">Cukup Sekali</option>
+                                        <option value="Cukup">Cukup</option>
+                                        <option value="Belum Ada Peringkat">Belum Ada Peringkat</option>
+                                    </select>
                                 </div>
                                 <div class="mb-3" id="id_lembaga">
                                     <label for="id_lembaga" class="form-label">Lembaga</label>

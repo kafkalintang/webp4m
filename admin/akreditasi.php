@@ -1,6 +1,7 @@
 <?php
 include "../koneksi.php";
-$akreditasi = query("SELECT 
+/** @var mysqli $koneksi */
+$akreditasi = query("SELECT
     akreditasi.id_akreditasi,
     akreditasi.akreditasi,
     akreditasi.id_unit,                
@@ -8,7 +9,7 @@ $akreditasi = query("SELECT
     unit.nama_unit_kerja,
     akreditasi.id_lembaga,
     akreditasi.id_jenis,
-    ps_jurusan.nama_jurusan,
+    akreditasi.nama_jurusan,
     ps_prodi.nama_program_studi,
     akreditasi.peringkat,
     ps_lembaga.nama_lembaga,
@@ -18,7 +19,6 @@ $akreditasi = query("SELECT
     akreditasi.sertifikat
 FROM akreditasi
 LEFT JOIN unit ON unit.id_unit = akreditasi.id_unit
-LEFT JOIN program_studi AS ps_jurusan ON ps_jurusan.nama_jurusan = akreditasi.nama_jurusan
 LEFT JOIN program_studi AS ps_prodi ON ps_prodi.id_prodi = akreditasi.id_prodi
 LEFT JOIN lembaga AS ps_lembaga ON ps_lembaga.id_lembaga = akreditasi.id_lembaga
 LEFT JOIN jenis_akreditasi AS ps_jenis_akreditasi ON ps_jenis_akreditasi.id_jenis = akreditasi.id_jenis");
@@ -390,15 +390,15 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                         <nav aria-label="Page navigation">
                             <ul class="pagination pagination-custom">
                                 <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
-                                    <a class="page-link arrow" href="?page=<?php echo $page - 1; ?>&judul=<?php echo $search; ?>" tabindex="-1">←</a>
+                                    <a class="page-link arrow" href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($search); ?>" tabindex="-1">←</a>
                                 </li>
                                 <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                                 <li class="page-item <?php echo ($page == $i) ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?page=<?php echo $i; ?>&judul=<?php echo $search; ?>"><?php echo $i; ?></a>
+                                    <a class="page-link" href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>"><?php echo $i; ?></a>
                                 </li>
                                 <?php endfor; ?>
                                 <li class="page-item <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">
-                                    <a class="page-link arrow" href="?page=<?php echo $page + 1; ?>&judul=<?php echo $search; ?>">→</a>
+                                    <a class="page-link arrow" href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($search); ?>">→</a>
                                 </li>
                             </ul>
                         </nav>
@@ -516,7 +516,15 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 </div>
                                 <div class="mb-3">
                                     <label for="peringkat" class="form-label">Peringkat</label>
-                                    <input type="text" class="form-control" name="peringkat" required>
+                                    <select class="form-select" name="peringkat" id="peringkat" required>
+                                        <option value="" selected disabled>-- Pilih Peringkat --</option>
+                                        <option value="Unggul">Unggul</option>
+                                        <option value="Baik Sekali">Baik Sekali</option>
+                                        <option value="Baik">Baik</option>
+                                        <option value="Cukup Sekali">Cukup Sekali</option>
+                                        <option value="Cukup">Cukup</option>
+                                        <option value="Belum Ada Peringkat">Belum Ada Peringkat</option>
+                                    </select>
                                 </div>
                                 <div class="mb-3" id="id_lembaga">
                                     <label for="id_lembaga" class="form-label">Lembaga</label>
