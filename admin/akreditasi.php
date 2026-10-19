@@ -236,6 +236,19 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
         }
     }
 
+    // Tampilkan hanya program studi milik jurusan yang dipilih
+    function filterProdi(jurusan) {
+        var select = document.getElementById('select_prodi');
+        for (var i = 0; i < select.options.length; i++) {
+            var opt = select.options[i];
+            if (opt.value === '0') continue; // placeholder
+            var cocok = opt.getAttribute('data-jurusan') === jurusan;
+            opt.hidden = !cocok;
+            opt.disabled = !cocok;
+        }
+        select.value = '0'; // reset pilihan prodi saat jurusan berganti
+    }
+
 </script>
 
 </head>
@@ -492,24 +505,26 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 </div>
                                 <div class="mb-3 hidden" id="nama_jurusan">
                                     <label for="nama_jurusan" class="form-label">Nama Jurusan</label>
-                                    <select class="form-select" name="nama_jurusan">
+                                    <select class="form-select" name="nama_jurusan" onchange="filterProdi(this.value)">
                                         <option value="0" selected disabled>-- Pilih Jurusan --</option>
                                         <?php
-                                            $ambil = mysqli_query($koneksi,"SELECT * FROM program_studi");
+                                            $ambil = mysqli_query($koneksi,"SELECT DISTINCT nama_jurusan FROM program_studi WHERE nama_jurusan <> '' ORDER BY nama_jurusan");
                                             while ($data = mysqli_fetch_assoc($ambil)){
-                                                echo '<option value="'.$data['nama_jurusan'].'">'.$data['nama_jurusan'].'</option>';
+                                                $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES);
+                                                echo '<option value="'.$jur.'">'.$jur.'</option>';
                                             }
                                         ?>
                                     </select>
                                 </div>
                                 <div class="mb-3 hidden" id="id_prodi">
                                     <label for="id_prodi" class="form-label">Nama Program Studi</label>
-                                    <select class="form-select" name="id_prodi">
+                                    <select class="form-select" name="id_prodi" id="select_prodi">
                                         <option value="0" selected disabled>-- Pilih Program Studi --</option>
                                         <?php
-                                            $ambil = mysqli_query($koneksi,"SELECT * FROM program_studi");
+                                            $ambil = mysqli_query($koneksi,"SELECT * FROM program_studi ORDER BY nama_program_studi");
                                             while ($data = mysqli_fetch_assoc($ambil)){
-                                                echo '<option value="'.$data['id_prodi'].'">'.$data['nama_program_studi'].'</option>';
+                                                $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES);
+                                                echo '<option value="'.$data['id_prodi'].'" data-jurusan="'.$jur.'" hidden disabled>'.$data['nama_program_studi'].'</option>';
                                             }
                                         ?>
                                     </select>
