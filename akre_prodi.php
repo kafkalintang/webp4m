@@ -1,9 +1,6 @@
 <?php
 include "koneksi.php"; 
 
-// ==========================================
-// 1. AMBIL DATA DARI DATABASE
-// ==========================================
 $query = "
     SELECT a1.*, ps.nama_program_studi, ps.nama_jurusan, l.nama_lembaga, ja.jenis_akreditasi
     FROM akreditasi a1
@@ -22,38 +19,24 @@ $query = "
 $result = mysqli_query($koneksi, $query);
 
 $data_prodi = [];
-$total_unggul = 0;
-$total_baik_sekali = 0;
-$total_baik = 0;
-$total_expire = 0;
-$total_semua = 0;
+$total_unggul = 0; $total_baik_sekali = 0; $total_baik = 0; $total_expire = 0; $total_semua = 0;
 $hari_ini = date('Y-m-d');
 
 while ($row = mysqli_fetch_assoc($result)) {
     $data_prodi[] = $row;
     $total_semua++;
     
-    // Hitung Statistik Peringkat
     $peringkat = strtolower($row['peringkat']);
-    if (strpos($peringkat, 'unggul') !== false) {
-        $total_unggul++;
-    } elseif (strpos($peringkat, 'baik sekali') !== false) {
-        $total_baik_sekali++;
-    } else {
-        $total_baik++;
-    }
+    if (strpos($peringkat, 'unggul') !== false) $total_unggul++;
+    elseif (strpos($peringkat, 'baik sekali') !== false) $total_baik_sekali++;
+    else $total_baik++;
 
-    // Hitung Masa Expire (< 1 Tahun)
     $tgl_berakhir = new DateTime($row['tanggal_berakhir']);
     $tgl_sekarang = new DateTime($hari_ini);
     $selisih = $tgl_sekarang->diff($tgl_berakhir)->days;
-    
-    if ($tgl_berakhir >= $tgl_sekarang && $selisih <= 365) {
-        $total_expire++;
-    }
+    if ($tgl_berakhir >= $tgl_sekarang && $selisih <= 365) $total_expire++;
 }
 
-// Hitung Persentase
 $pct_unggul = ($total_semua > 0) ? round(($total_unggul / $total_semua) * 100) : 0;
 $pct_baik_sekali = ($total_semua > 0) ? round(($total_baik_sekali / $total_semua) * 100) : 0;
 $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
@@ -61,66 +44,47 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
   <title>Akreditasi Program Studi - P4M Polibatam</title>
-  <meta name="description" content="">
-  <meta name="keywords" content="">
-
   <link href="assets/img/logo/polibatam.svg" rel="icon">
-  <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Nunito:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
-  
   <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
   <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
   <link href="assets/vendor/aos/aos.css" rel="stylesheet">
-  <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
-  <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
   <link href="assets/css/main.css" rel="stylesheet">
-  
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
   <style>
     .nav-tabs-custom { border-bottom: 2px solid #e9ecef; margin-bottom: 30px; }
     .nav-tabs-custom .nav-link { border: none; color: #6c757d; font-weight: 600; padding: 12px 20px; position: relative; background: transparent; }
     .nav-tabs-custom .nav-link:hover { color: #0d83fd; }
     .nav-tabs-custom .nav-link.active { color: #0d83fd; background: transparent; }
     .nav-tabs-custom .nav-link.active::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 3px; background-color: #0d83fd; }
-    
     .modern-card { background: #fff; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 4px 15px rgba(0,0,0,0.03); height: 100%; }
     .modern-card .card-header { background: transparent; border-bottom: 1px solid #e9ecef; padding: 20px; }
-    
     .stat-card { background: #fff; border-radius: 12px; border: 1px solid #e9ecef; padding: 20px; transition: 0.3s; cursor: pointer; height: 100%; }
     .stat-card:hover { box-shadow: 0 8px 15px rgba(0,0,0,0.08); transform: translateY(-3px); border-color: #0d83fd; }
     .stat-card .stat-label { font-size: 14px; color: #6c757d; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .stat-card .stat-number { font-size: 28px; font-weight: 700; color: #1e2b4c; line-height: 1; margin-bottom: 5px; }
     .stat-card .stat-desc { font-size: 13px; color: #adb5bd; }
-    
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    
     .card-warning { background-color: #fff9e6; border-color: #ffeeba; }
     .card-warning .stat-number, .card-warning .stat-label, .card-warning .stat-desc { color: #856404; }
-
     .pill-filter { display: inline-block; padding: 8px 16px; border-radius: 50px; background: #fff; border: 1px solid #dee2e6; color: #495057; font-size: 14px; font-weight: 500; cursor: pointer; transition: 0.2s; }
     .pill-filter:hover { border-color: #0d83fd; color: #0d83fd; }
     .pill-filter.active { background: #0d83fd; border-color: #0d83fd; color: #fff; }
-    
     .table-custom { vertical-align: middle; margin-bottom: 0; }
     .table-custom thead th { background-color: #f8f9fa; color: #1e2b4c; font-weight: 600; border-bottom: 2px solid #dee2e6; padding: 15px; }
     .table-custom tbody td { padding: 15px; border-bottom: 1px solid #e9ecef; color: #495057; }
-    
     .badge-expire { background-color: #fff3cd; color: #856404; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
     .badge-aktif { background-color: #d1e7dd; color: #0f5132; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
   </style>
 </head>
-
 <body class="service-details-page">
 
-  <!-- Navbar -->
   <header id="header" class="header d-flex align-items-center fixed-top">
     <div class="header-container container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
       <a href="index.php" class="logo d-flex align-items-center me-auto me-xl-0">
@@ -161,7 +125,6 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
   </header>
 
   <main class="main">
-
     <div class="page-title light-background" style="margin-top: 80px;">
       <div class="container">
         <div class="container section-title" data-aos="fade-up">
@@ -185,10 +148,8 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
 
         <div class="tab-content" id="myTabContent">
           
-          <!-- ================= TAB NASIONAL ================= -->
           <div class="tab-pane fade show active" id="nasional" role="tabpanel">
             
-            <!-- Baris Diagram & Ringkasan -->
             <div class="row g-4 mb-5 align-items-center">
               <div class="col-lg-3">
                 <div class="position-relative mx-auto" style="width: 200px; height: 200px;">
@@ -203,28 +164,28 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
               <div class="col-lg-9">
                 <div class="row g-3">
                   <div class="col-md-3">
-                    <div class="stat-card" onclick="setFilter('kategori', 'unggul')" title="Klik untuk melihat detail">
+                    <div class="stat-card" onclick="setFilter('kategori', 'unggul')">
                       <div class="stat-label"><span class="dot" style="background:#0d83fd;"></span> Unggul</div>
                       <div class="stat-number"><?= $total_unggul ?></div>
                       <div class="stat-desc"><?= $pct_unggul ?>% dari total</div>
                     </div>
                   </div>
                   <div class="col-md-3">
-                    <div class="stat-card" onclick="setFilter('kategori', 'baik sekali')" title="Klik untuk melihat detail">
+                    <div class="stat-card" onclick="setFilter('kategori', 'baik sekali')">
                       <div class="stat-label"><span class="dot" style="background:#7fbcff;"></span> Baik Sekali</div>
                       <div class="stat-number"><?= $total_baik_sekali ?></div>
                       <div class="stat-desc"><?= $pct_baik_sekali ?>% dari total</div>
                     </div>
                   </div>
                   <div class="col-md-3">
-                    <div class="stat-card" onclick="setFilter('kategori', 'baik')" title="Klik untuk melihat detail">
+                    <div class="stat-card" onclick="setFilter('kategori', 'baik')">
                       <div class="stat-label"><span class="dot" style="background:#adb5bd;"></span> Baik</div>
                       <div class="stat-number"><?= $total_baik ?></div>
                       <div class="stat-desc"><?= $pct_baik ?>% dari total</div>
                     </div>
                   </div>
                   <div class="col-md-3">
-                    <div class="stat-card card-warning" onclick="setFilter('expire', '1')" title="Klik untuk melihat detail">
+                    <div class="stat-card card-warning" onclick="setFilter('expire', '1')">
                       <div class="stat-label">Masa Expire < 1 Thn</div>
                       <div class="stat-number"><?= $total_expire ?></div>
                       <div class="stat-desc">Perlu Reminder KPS</div>
@@ -234,7 +195,6 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
               </div>
             </div>
 
-            <!-- Filter Jurusan -->
             <div class="mb-4">
               <h6 class="fw-bold mb-2">Pilih Jurusan (Filter)</h6>
               <p class="text-muted small mb-3">Klik jurusan untuk menyaring tabel</p>
@@ -247,7 +207,6 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
               </div>
             </div>
 
-            <!-- Tabel Data -->
             <div class="modern-card">
               <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
@@ -274,22 +233,17 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
                       <?php if(count($data_prodi) > 0): ?>
                         <?php $no = 1; foreach($data_prodi as $prodi): ?>
                           <?php 
-                            // Hitung Status Expire
                             $tgl_berakhir = new DateTime($prodi['tanggal_berakhir']);
                             $tgl_sekarang = new DateTime($hari_ini);
                             $selisih = $tgl_sekarang->diff($tgl_berakhir)->days;
                             $is_expire = ($tgl_berakhir >= $tgl_sekarang && $selisih <= 365);
                             
-                            // Tentukan kategori untuk filter JS (unggul, baik sekali, baik)
                             $peringkat_lower = strtolower($prodi['peringkat']);
                             $kategori = 'baik';
                             if (strpos($peringkat_lower, 'unggul') !== false) $kategori = 'unggul';
                             elseif (strpos($peringkat_lower, 'baik sekali') !== false) $kategori = 'baik sekali';
                           ?>
-                          <tr class="prodi-row" 
-                              data-jurusan="<?= htmlspecialchars($prodi['nama_jurusan']) ?>" 
-                              data-kategori="<?= $kategori ?>"
-                              data-expire="<?= $is_expire ? '1' : '0' ?>">
+                          <tr class="prodi-row" data-jurusan="<?= htmlspecialchars($prodi['nama_jurusan']) ?>" data-kategori="<?= $kategori ?>" data-expire="<?= $is_expire ? '1' : '0' ?>">
                             <td class="text-center"><?= $no++ ?></td>
                             <td>
                               <b><?= htmlspecialchars($prodi['nama_program_studi']) ?></b><br>
@@ -306,13 +260,10 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
                               <?php endif; ?>
                             </td>
                             <td class="text-center">
-                              <?php if(!empty($prodi['sertifikat'])): ?>
-                                <a href="admin/<?= htmlspecialchars($prodi['sertifikat']) ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">
-                                  <i class="bi bi-file-earmark-pdf"></i> Lihat
-                                </a>
-                              <?php else: ?>
-                                <span class="text-muted small">Tidak ada</span>
-                              <?php endif; ?>
+                              <!-- TOMBOL LIHAT DETAIL: Mengarah ke halaman baru dengan membawa ID Prodi -->
+                              <a href="akre_prodi_detail.php?id=<?= $prodi['id_prodi'] ?>" class="btn btn-sm btn-outline-primary rounded-pill">
+                                <i class="bi bi-eye"></i> Lihat Detail
+                              </a>
                             </td>
                           </tr>
                         <?php endforeach; ?>
@@ -333,7 +284,6 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
 
           </div>
 
-          <!-- ================= TAB INTERNASIONAL ================= -->
           <div class="tab-pane fade" id="internasional" role="tabpanel">
             <div class="modern-card p-5 text-center">
               <div class="text-muted mb-2"><i class="bi bi-globe fs-1"></i></div>
@@ -349,7 +299,6 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
 
   </main>
 
-  <!-- Footer -->
   <footer id="footer" class="footer">
     <div class="container footer-top">
       <div class="row gy-4">
@@ -404,25 +353,20 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
             <li><a href="video_digital.php">Video Digital</a></li>
           </ul>
         </div>
-
       </div>
     </div>
-
     <div class="container copyright text-center mt-4">
       <p><strong class="px-1 sitename">Made By Pusat Penjaminan Mutu dan Pengembangan Pembelajaran</strong></p>
     </div>
   </footer>
 
   <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
-
   <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="assets/vendor/aos/aos.js"></script>
   <script src="assets/js/main.js"></script>
 
   <script>
     document.addEventListener("DOMContentLoaded", function() {
-      
-      // 1. TAMPILAN DONUT CHART
       const ctx = document.getElementById('donutChartNasional').getContext('2d');
       new Chart(ctx, {
         type: 'doughnut',
@@ -435,52 +379,35 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
             borderColor: '#fff'
           }]
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '75%',
-          plugins: { legend: { display: false } }
-        }
+        options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false } } }
       });
 
-      // Variabel untuk menyimpan status filter saat ini
       let currentJurusan = "Semua Jurusan";
       let currentKategori = "semua";
       let currentExpire = "0";
 
-      // 2. FUNGSI UTAMA UNTUK MENYARING TABEL (Bisa dipanggil dari kotak atau tombol)
       window.setFilter = function(type, value) {
         if (type === 'jurusan') {
             currentJurusan = value;
-            // Ubah warna tombol jurusan
             document.querySelectorAll('#filter-pills-nas .pill-filter').forEach(btn => btn.classList.remove('active'));
-            // Cari tombol yang diklik berdasarkan teksnya
             Array.from(document.querySelectorAll('#filter-pills-nas .pill-filter')).find(el => el.innerText.includes(value) || value === 'Semua Jurusan' && el.innerText === 'Semua Jurusan').classList.add('active');
-            
-            // Reset filter kategori jika yang diklik adalah jurusan
             currentKategori = "semua";
             currentExpire = "0";
-        } 
-        else if (type === 'kategori') {
+        } else if (type === 'kategori') {
             currentKategori = value;
-            // Reset filter jurusan jika yang diklik adalah kategori
             currentJurusan = "Semua Jurusan";
             document.querySelectorAll('#filter-pills-nas .pill-filter').forEach(btn => btn.classList.remove('active'));
-            document.querySelector('#filter-pills-nas .pill-filter').classList.add('active'); // Set ke "Semua Jurusan"
-        }
-        else if (type === 'expire') {
+            document.querySelector('#filter-pills-nas .pill-filter').classList.add('active');
+        } else if (type === 'expire') {
             currentExpire = value;
-            // Reset filter lainnya
             currentKategori = "semua";
             currentJurusan = "Semua Jurusan";
             document.querySelectorAll('#filter-pills-nas .pill-filter').forEach(btn => btn.classList.remove('active'));
-            document.querySelector('#filter-pills-nas .pill-filter').classList.add('active'); // Set ke "Semua Jurusan"
+            document.querySelector('#filter-pills-nas .pill-filter').classList.add('active');
         }
-
-        applyFilter(); // Jalankan penyaringan
+        applyFilter();
       };
 
-      // 3. FUNGSI UNTUK MENERAPKAN FILTER KE TABEL
       function applyFilter() {
         let judul = "Daftar Prodi ";
         if (currentJurusan !== "Semua Jurusan") judul += `(${currentJurusan})`;
@@ -495,30 +422,19 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
             let matchJurusan = (currentJurusan === "Semua Jurusan" || row.dataset.jurusan.toLowerCase().includes(currentJurusan.toLowerCase()));
             let matchKategori = (currentKategori === "semua" || row.dataset.kategori === currentKategori);
             let matchExpire = (currentExpire === "0" || row.dataset.expire === "1");
-
-            if (matchJurusan && matchKategori && matchExpire) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            if (matchJurusan && matchKategori && matchExpire) row.style.display = '';
+            else row.style.display = 'none';
         });
       }
 
-      // 4. FITUR PENCARIAN (SEARCH)
       window.searchTable = function() {
         const input = document.getElementById("search-input").value.toLowerCase();
         const rows = document.querySelectorAll('.prodi-row');
-        
         rows.forEach(row => {
-          const text = row.innerText.toLowerCase();
-          if(text.includes(input)) {
-            row.style.display = ''; 
-          } else {
-            row.style.display = 'none'; 
-          }
+          if(row.innerText.toLowerCase().includes(input)) row.style.display = ''; 
+          else row.style.display = 'none'; 
         });
       };
-      
     });
   </script>
 </body>
