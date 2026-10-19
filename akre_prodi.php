@@ -59,28 +59,37 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     .nav-tabs-custom { border-bottom: 2px solid #e9ecef; margin-bottom: 30px; }
-    .nav-tabs-custom .nav-link { border: none; color: #6c757d; font-weight: 600; padding: 12px 20px; position: relative; background: transparent; }
+    .nav-tabs-custom .nav-link { border: none; color: #6c757d; font-weight: 600; padding: 12px 20px; position: relative; background: transparent; transition: 0.3s; }
     .nav-tabs-custom .nav-link:hover { color: #0d83fd; }
     .nav-tabs-custom .nav-link.active { color: #0d83fd; background: transparent; }
     .nav-tabs-custom .nav-link.active::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 3px; background-color: #0d83fd; }
-    .modern-card { background: #fff; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 4px 15px rgba(0,0,0,0.03); height: 100%; }
+    
+    .modern-card { background: #fff; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 4px 15px rgba(0,0,0,0.03); height: 100%; transition: 0.3s; }
     .modern-card .card-header { background: transparent; border-bottom: 1px solid #e9ecef; padding: 20px; }
+    
     .stat-card { background: #fff; border-radius: 12px; border: 1px solid #e9ecef; padding: 20px; transition: 0.3s; cursor: pointer; height: 100%; }
     .stat-card:hover { box-shadow: 0 8px 15px rgba(0,0,0,0.08); transform: translateY(-3px); border-color: #0d83fd; }
     .stat-card .stat-label { font-size: 14px; color: #6c757d; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .stat-card .stat-number { font-size: 28px; font-weight: 700; color: #1e2b4c; line-height: 1; margin-bottom: 5px; }
     .stat-card .stat-desc { font-size: 13px; color: #adb5bd; }
+    
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    
     .card-warning { background-color: #fff9e6; border-color: #ffeeba; }
     .card-warning .stat-number, .card-warning .stat-label, .card-warning .stat-desc { color: #856404; }
+
     .pill-filter { display: inline-block; padding: 8px 16px; border-radius: 50px; background: #fff; border: 1px solid #dee2e6; color: #495057; font-size: 14px; font-weight: 500; cursor: pointer; transition: 0.2s; }
     .pill-filter:hover { border-color: #0d83fd; color: #0d83fd; }
     .pill-filter.active { background: #0d83fd; border-color: #0d83fd; color: #fff; }
+    
     .table-custom { vertical-align: middle; margin-bottom: 0; }
-    .table-custom thead th { background-color: #f8f9fa; color: #1e2b4c; font-weight: 600; border-bottom: 2px solid #dee2e6; padding: 15px; }
+    .table-custom thead th { background-color: #f8f9fa; color: #1e2b4c; font-weight: 600; border-bottom: 2px solid #dee2e6; padding: 15px; white-space: nowrap; }
     .table-custom tbody td { padding: 15px; border-bottom: 1px solid #e9ecef; color: #495057; }
-    .badge-expire { background-color: #fff3cd; color: #856404; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
-    .badge-aktif { background-color: #d1e7dd; color: #0f5132; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
+    .table-custom tbody tr { transition: 0.2s; }
+    .table-custom tbody tr:hover { background-color: #f8fbff; }
+    
+    .badge-expire { background-color: #fff3cd; color: #856404; font-weight: 600; padding: 6px 12px; border-radius: 6px; font-size: 13px; }
+    .badge-aktif { background-color: #d1e7dd; color: #0f5132; font-weight: 600; padding: 6px 12px; border-radius: 6px; font-size: 13px; }
   </style>
 </head>
 <body class="service-details-page">
@@ -151,7 +160,7 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
           <div class="tab-pane fade show active" id="nasional" role="tabpanel">
             
             <div class="row g-4 mb-5 align-items-center">
-              <div class="col-lg-3">
+              <div class="col-lg-3" data-aos="fade-right" data-aos-delay="100">
                 <div class="position-relative mx-auto" style="width: 200px; height: 200px;">
                   <canvas id="donutChartNasional"></canvas>
                   <div class="position-absolute top-50 start-50 translate-middle text-center" style="pointer-events: none;">
@@ -163,28 +172,28 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
 
               <div class="col-lg-9">
                 <div class="row g-3">
-                  <div class="col-md-3">
+                  <div class="col-md-3" data-aos="fade-up" data-aos-delay="200">
                     <div class="stat-card" onclick="setFilter('kategori', 'unggul')">
                       <div class="stat-label"><span class="dot" style="background:#0d83fd;"></span> Unggul</div>
                       <div class="stat-number"><?= $total_unggul ?></div>
                       <div class="stat-desc"><?= $pct_unggul ?>% dari total</div>
                     </div>
                   </div>
-                  <div class="col-md-3">
+                  <div class="col-md-3" data-aos="fade-up" data-aos-delay="300">
                     <div class="stat-card" onclick="setFilter('kategori', 'baik sekali')">
                       <div class="stat-label"><span class="dot" style="background:#7fbcff;"></span> Baik Sekali</div>
                       <div class="stat-number"><?= $total_baik_sekali ?></div>
                       <div class="stat-desc"><?= $pct_baik_sekali ?>% dari total</div>
                     </div>
                   </div>
-                  <div class="col-md-3">
+                  <div class="col-md-3" data-aos="fade-up" data-aos-delay="400">
                     <div class="stat-card" onclick="setFilter('kategori', 'baik')">
                       <div class="stat-label"><span class="dot" style="background:#adb5bd;"></span> Baik</div>
                       <div class="stat-number"><?= $total_baik ?></div>
                       <div class="stat-desc"><?= $pct_baik ?>% dari total</div>
                     </div>
                   </div>
-                  <div class="col-md-3">
+                  <div class="col-md-3" data-aos="fade-up" data-aos-delay="500">
                     <div class="stat-card card-warning" onclick="setFilter('expire', '1')">
                       <div class="stat-label">Masa Expire < 1 Thn</div>
                       <div class="stat-number"><?= $total_expire ?></div>
@@ -195,7 +204,7 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
               </div>
             </div>
 
-            <div class="mb-4">
+            <div class="mb-4" data-aos="fade-up" data-aos-delay="100">
               <h6 class="fw-bold mb-2">Pilih Jurusan (Filter)</h6>
               <p class="text-muted small mb-3">Klik jurusan untuk menyaring tabel</p>
               <div class="d-flex flex-wrap gap-2" id="filter-pills-nas">
@@ -207,7 +216,7 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
               </div>
             </div>
 
-            <div class="modern-card">
+            <div class="modern-card" data-aos="fade-up" data-aos-delay="200">
               <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
                   <h6 class="fw-bold mb-1" id="judul-tabel">Daftar Prodi (Semua)</h6>
@@ -221,10 +230,12 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
                     <thead>
                       <tr>
                         <th width="5%" class="text-center">No</th>
-                        <th width="30%">Program Studi</th>
+                        <th width="25%">Program Studi</th>
                         <th class="text-center">Peringkat</th>
                         <th class="text-center">Lembaga</th>
-                        <th class="text-center">Masa Berlaku</th>
+                        <!-- KOLOM DIPECAH JADI 2 -->
+                        <th class="text-center">Tanggal Mulai</th>
+                        <th class="text-center">Tanggal Berakhir</th>
                         <th class="text-center">Status</th>
                         <th class="text-center">Aksi</th>
                       </tr>
@@ -251,7 +262,9 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
                             </td>
                             <td class="text-center"><?= htmlspecialchars($prodi['peringkat']) ?></td>
                             <td class="text-center"><?= htmlspecialchars($prodi['nama_lembaga']) ?></td>
-                            <td class="text-center"><?= date('d M Y', strtotime($prodi['tanggal_mulai'])) ?> - <?= date('d M Y', strtotime($prodi['tanggal_berakhir'])) ?></td>
+                            <!-- TANGGAL DIPECAH -->
+                            <td class="text-center text-muted"><?= date('d M Y', strtotime($prodi['tanggal_mulai'])) ?></td>
+                            <td class="text-center text-muted"><?= date('d M Y', strtotime($prodi['tanggal_berakhir'])) ?></td>
                             <td class="text-center">
                               <?php if($is_expire): ?>
                                 <span class="badge-expire">Masa Expire < 1 Thn</span>
@@ -260,7 +273,6 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
                               <?php endif; ?>
                             </td>
                             <td class="text-center">
-                              <!-- TOMBOL LIHAT DETAIL: Mengarah ke halaman baru dengan membawa ID Prodi -->
                               <a href="akre_prodi_detail.php?id=<?= $prodi['id_prodi'] ?>" class="btn btn-sm btn-outline-primary rounded-pill">
                                 <i class="bi bi-eye"></i> Lihat Detail
                               </a>
@@ -269,7 +281,7 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
                         <?php endforeach; ?>
                       <?php else: ?>
                         <tr>
-                          <td colspan="7" class="text-center py-5">
+                          <td colspan="8" class="text-center py-5">
                             <div class="text-muted mb-2"><i class="bi bi-folder-x fs-1"></i></div>
                             <h6 class="fw-bold text-dark">Belum Ada Data</h6>
                             <p class="small text-muted mb-0">Data akreditasi program studi belum diisi oleh admin.</p>
@@ -285,7 +297,7 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
           </div>
 
           <div class="tab-pane fade" id="internasional" role="tabpanel">
-            <div class="modern-card p-5 text-center">
+            <div class="modern-card p-5 text-center" data-aos="fade-up">
               <div class="text-muted mb-2"><i class="bi bi-globe fs-1"></i></div>
               <h6 class="fw-bold text-dark">Belum Ada Data Internasional</h6>
               <p class="small text-muted mb-0">Data akreditasi program studi internasional belum diisi oleh admin.</p>
@@ -361,12 +373,16 @@ $pct_baik = ($total_semua > 0) ? round(($total_baik / $total_semua) * 100) : 0;
   </footer>
 
   <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+  
   <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="assets/vendor/aos/aos.js"></script>
   <script src="assets/js/main.js"></script>
 
   <script>
     document.addEventListener("DOMContentLoaded", function() {
+      // Inisialisasi AOS (Animasi)
+      AOS.init({ duration: 600, once: true, easing: 'ease-out-cubic' });
+
       const ctx = document.getElementById('donutChartNasional').getContext('2d');
       new Chart(ctx, {
         type: 'doughnut',
