@@ -349,7 +349,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 <th>Unit Kerja</th>
                                 <th>Jurusan</th>
                                 <th>Program Studi</th>
-                                <th>Peringkat</th>
+                                <th>Predikat</th> <!-- UBAH JADI PREDIKAT -->
                                 <th>Lembaga</th>
                                 <th>Jenis Akreditasi</th>
                                 <th>Tanggal Mulai</th>
@@ -368,7 +368,8 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                     <td><?= !empty($row['nama_jurusan']) ? $row['nama_jurusan'] : "Tidak Tersedia" ?></td>
                                     <td><?= !empty($row['nama_program_studi']) ? $row['nama_program_studi'] : "Tidak Tersedia" ?></td>
                                     <td><?php echo $row["peringkat"]; ?></td>
-                                    <td><?php echo $row["nama_lembaga"]; ?></td>
+                                    <!-- UBAH LEMBAGA JADI HURUF KAPITAL -->
+                                    <td><?php echo strtoupper($row["nama_lembaga"]); ?></td>
                                     <td><?php echo $row["jenis_akreditasi"]; ?></td>
                                     <td><?php echo $row["tanggal_mulai"]; ?></td>
                                     <td><?php echo $row["tanggal_berakhir"]; ?></td>
@@ -529,16 +530,18 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                         ?>
                                     </select>
                                 </div>
+                                <!-- UBAH LABEL JADI PREDIKAT -->
                                 <div class="mb-3">
-                                    <label for="peringkat" class="form-label">Peringkat</label>
+                                    <label for="peringkat" class="form-label">Predikat</label>
                                     <select class="form-select" name="peringkat" id="peringkat" required>
-                                        <option value="" selected disabled>-- Pilih Peringkat --</option>
+                                        <option value="" selected disabled>-- Pilih Predikat --</option>
                                         <option value="Unggul">Unggul</option>
                                         <option value="Baik Sekali">Baik Sekali</option>
                                         <option value="Baik">Baik</option>
                                         <option value="Cukup Sekali">Cukup Sekali</option>
                                         <option value="Cukup">Cukup</option>
-                                        <option value="Belum Ada Peringkat">Belum Ada Peringkat</option>
+                                        <!-- UBAH BELUM ADA PERINGKAT JADI TERAKREDITASI -->
+                                        <option value="Terakreditasi">Terakreditasi</option>
                                     </select>
                                 </div>
                                 <div class="mb-3" id="id_lembaga">
@@ -548,7 +551,8 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                         <?php
                                             $ambil = mysqli_query($koneksi,"SELECT * FROM lembaga");
                                             while ($data = mysqli_fetch_assoc($ambil)){
-                                                echo '<option value="'.$data['id_lembaga'].'">'.$data['nama_lembaga'].'</option>';
+                                                // MENAMBAHKAN strtoupper() PADA OPSI LEMBAGA
+                                                echo '<option value="'.$data['id_lembaga'].'">'.strtoupper($data['nama_lembaga']).'</option>';
                                             }
                                         ?>
                                     </select>

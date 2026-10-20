@@ -183,7 +183,7 @@ $pct_terakreditasi = ($total_semua > 0) ? round(($total_terakreditasi / $total_s
                 <!-- TOMBOL EXCEL DI ATAS KOTAK -->
                 <div class="d-flex justify-content-end mb-2">
                   <button onclick="exportExcel('nasional')" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm">
-                    <i class="bi bi-file-earmark-excel-fill me-1"></i> Export Excel
+                    <i class="bbi bi-file-earmark-text-fill me-1"></i> Export Excel
                   </button>
                 </div>
 
@@ -322,7 +322,7 @@ $pct_terakreditasi = ($total_semua > 0) ? round(($total_terakreditasi / $total_s
           <div class="tab-pane fade" id="internasional" role="tabpanel">
             <div class="d-flex justify-content-end mb-3">
               <button onclick="exportExcel('internasional')" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm">
-                <i class="bi bi-file-earmark-excel-fill me-1"></i> Export Excel
+                <i class="bi bi-file-earmark-text-fill me-1"></i> Export Excel
               </button>
             </div>
             <div class="modern-card p-5 text-center">
