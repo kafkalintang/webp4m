@@ -31,6 +31,17 @@ $query_riwayat = "
 $result_riwayat = mysqli_query($koneksi, $query_riwayat);
 
 $hari_ini = date('Y-m-d');
+
+// Ambil email KPS dari riwayat terbaru (jika ada)
+$email_kps_tampil = '';
+if (mysqli_num_rows($result_riwayat) > 0) {
+    $riwayat_terbaru = mysqli_fetch_assoc($result_riwayat);
+    if (strpos($riwayat_terbaru['sertifikat'], 'email:') === 0) {
+        $email_kps_tampil = substr($riwayat_terbaru['sertifikat'], 6);
+    }
+    // Kembalikan pointer data ke awal agar tetap bisa dilooping di tabel
+    mysqli_data_seek($result_riwayat, 0); 
+}
 ?>
 
 <!DOCTYPE html>
@@ -52,12 +63,7 @@ $hari_ini = date('Y-m-d');
   <link href="assets/css/main.css" rel="stylesheet">
 
   <style>
-    /* FIX FOOTER DI PALING BAWAH */
-    html,
-    body {
-      height: 100%;
-    }
-
+    html, body { height: 100%; }
     body {
       display: flex;
       flex-direction: column;
@@ -65,147 +71,25 @@ $hari_ini = date('Y-m-d');
       background-image: linear-gradient(180deg, #eaf3ff 0%, #f8f9fa 100%);
       background-attachment: fixed;
     }
-
-    /* Main akan mengambil sisa ruang kosong sehingga footer terdorong ke bawah */
-    .main {
-      flex: 1 0 auto;
-    }
-
-    .main-container {
-      margin-top: 100px;
-      padding-bottom: 50px;
-    }
-
-    .btn-back {
-      background: #fff;
-      color: #495057;
-      border: 1px solid #dee2e6;
-      font-weight: 500;
-      transition: 0.3s;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
-    }
-
-    .btn-back:hover {
-      background: #0d83fd;
-      color: #fff;
-      border-color: #0d83fd;
-      transform: translateY(-2px);
-    }
-
-    .content-card {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 6px 25px rgba(13, 131, 253, 0.05);
-      border: 1px solid rgba(13, 131, 253, 0.1);
-      padding: 30px;
-      margin-bottom: 24px;
-    }
-
-    .detail-head {
-      border-left: 5px solid #0d83fd;
-      padding-left: 20px;
-    }
-
-    .badge-custom {
-      font-size: 13px;
-      padding: 6px 14px;
-      border-radius: 8px;
-      background: #e6f2ff;
-      color: #0a6fd8;
-      font-weight: 600;
-      margin-bottom: 10px;
-      display: inline-block;
-      margin-right: 5px;
-    }
-
-    .detail-head h2 {
-      font-size: 32px;
-      font-weight: 800;
-      color: #1e2b4c;
-      margin-bottom: 8px;
-    }
-
-    .detail-head p {
-      color: #6c757d;
-      font-size: 15px;
-      margin: 0;
-    }
-
-    .kps-box {
-      background: #f4f8fe;
-      border-radius: 12px;
-      padding: 20px;
-      border: 1px solid #d0e3fa;
-      display: flex;
-      align-items: flex-start;
-      gap: 15px;
-      transition: 0.3s;
-    }
-
-    .kps-box:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 15px rgba(13, 131, 253, 0.08);
-    }
-
-    .kps-icon {
-      width: 40px;
-      height: 40px;
-      background: #fff;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #0d83fd;
-      font-size: 20px;
-      box-shadow: 0 2px 10px rgba(13, 131, 253, 0.1);
-    }
-
-    .kps-box .label {
-      font-size: 13px;
-      color: #6c757d;
-      margin-bottom: 4px;
-    }
-
-    .kps-box .mail {
-      font-weight: 700;
-      color: #1e2b4c;
-      font-size: 16px;
-    }
-
-    .kps-box .note {
-      font-size: 13px;
-      color: #1a7f4b;
-      margin-top: 4px;
-      font-weight: 500;
-    }
-
-    .table-custom {
-      vertical-align: middle;
-      margin-bottom: 0;
-    }
-
-    .table-custom thead th {
-      background-color: #f8f9fa;
-      color: #1e2b4c;
-      font-weight: 700;
-      padding: 16px;
-      border-bottom: 2px solid #dee2e6;
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-    }
-
-    .table-custom tbody td {
-      padding: 16px;
-      border-bottom: 1px solid #e9ecef;
-      color: #495057;
-      font-size: 15px;
-    }
-
-    .table-hover tbody tr:hover {
-      background-color: #f4f8fe;
-    }
+    .main { flex: 1 0 auto; }
+    .main-container { margin-top: 100px; padding-bottom: 50px; }
+    .btn-back { background: #fff; color: #495057; border: 1px solid #dee2e6; font-weight: 500; transition: 0.3s; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02); }
+    .btn-back:hover { background: #0d83fd; color: #fff; border-color: #0d83fd; transform: translateY(-2px); }
+    .content-card { background: #fff; border-radius: 16px; box-shadow: 0 6px 25px rgba(13, 131, 253, 0.05); border: 1px solid rgba(13, 131, 253, 0.1); padding: 30px; margin-bottom: 24px; }
+    .detail-head { border-left: 5px solid #0d83fd; padding-left: 20px; }
+    .badge-custom { font-size: 13px; padding: 6px 14px; border-radius: 8px; background: #e6f2ff; color: #0a6fd8; font-weight: 600; margin-bottom: 10px; display: inline-block; margin-right: 5px; }
+    .detail-head h2 { font-size: 32px; font-weight: 800; color: #1e2b4c; margin-bottom: 8px; }
+    .detail-head p { color: #6c757d; font-size: 15px; margin: 0; }
+    .kps-box { background: #f4f8fe; border-radius: 12px; padding: 20px; border: 1px solid #d0e3fa; display: flex; align-items: flex-start; gap: 15px; transition: 0.3s; }
+    .kps-box:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(13, 131, 253, 0.08); }
+    .kps-icon { width: 40px; height: 40px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #0d83fd; font-size: 20px; box-shadow: 0 2px 10px rgba(13, 131, 253, 0.1); }
+    .kps-box .label { font-size: 13px; color: #6c757d; margin-bottom: 4px; }
+    .kps-box .mail { font-weight: 700; color: #1e2b4c; font-size: 16px; }
+    .kps-box .note { font-size: 13px; color: #1a7f4b; margin-top: 4px; font-weight: 500; }
+    .table-custom { vertical-align: middle; margin-bottom: 0; }
+    .table-custom thead th { background-color: #f8f9fa; color: #1e2b4c; font-weight: 700; padding: 16px; border-bottom: 2px solid #dee2e6; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    .table-custom tbody td { padding: 16px; border-bottom: 1px solid #e9ecef; color: #495057; font-size: 15px; }
+    .table-hover tbody tr:hover { background-color: #f4f8fe; }
   </style>
 </head>
 
@@ -280,7 +164,16 @@ $hari_ini = date('Y-m-d');
               <div class="kps-icon"><i class="bi bi-envelope-paper-fill"></i></div>
               <div>
                 <div class="label">Email KPS / Kaprodi (Reminder Feature)</div>
-                <div class="mail">kps_<?= strtolower(str_replace(' ', '', substr($data_prodi['nama_program_studi'], 0, 3))) ?>@polibatam.ac.id</div>
+                <div class="mail">
+                  <?php 
+                    // Tampilkan email dari admin jika ada, jika tidak pakai tebakan otomatis
+                    if ($email_kps_tampil != '') {
+                        echo htmlspecialchars($email_kps_tampil);
+                    } else {
+                        echo 'kps_' . strtolower(str_replace(' ', '', substr($data_prodi['nama_program_studi'], 0, 3))) . '@polibatam.ac.id';
+                    }
+                  ?>
+                </div>
                 <div class="note"><i class="bi bi-check-circle-fill me-1"></i> Notif email otomatis H-1 tahun aktif</div>
               </div>
             </div>
@@ -299,12 +192,11 @@ $hari_ini = date('Y-m-d');
             <thead>
               <tr>
                 <th width="5%" class="text-center">No</th>
-                <!-- KOLOM DIPECAH JADI 2 -->
                 <th class="text-center">Tanggal Mulai</th>
                 <th class="text-center">Tanggal Berakhir</th>
                 <th>Peringkat</th>
                 <th>Lembaga</th>
-                <th class="text-center">Sertifikat</th>
+                <th class="text-center">Sertifikat / SK</th>
               </tr>
             </thead>
             <tbody>
@@ -315,16 +207,21 @@ $hari_ini = date('Y-m-d');
               ?>
                   <tr>
                     <td class="text-center fw-bold text-muted"><?= $no++ ?></td>
-                    <!-- DATA TANGGAL DIPECAH -->
                     <td class="text-center text-dark fw-medium"><?= date('d M Y', strtotime($riwayat['tanggal_mulai'])) ?></td>
                     <td class="text-center text-dark fw-medium"><?= date('d M Y', strtotime($riwayat['tanggal_berakhir'])) ?></td>
                     <td><span class="fw-medium"><?= htmlspecialchars($riwayat['peringkat']) ?></span></td>
                     <td><?= htmlspecialchars($riwayat['nama_lembaga'] ?? '-') ?></td>
                     <td class="text-center">
                       <?php if (!empty($riwayat['sertifikat'])): ?>
-                        <a href="admin/<?= htmlspecialchars($riwayat['sertifikat']) ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                          <i class="bi bi-file-earmark-text-fill me-1"></i> Lihat Sertifikat
-                        </a>
+                          <?php if (strpos($riwayat['sertifikat'], 'email:') === 0): ?>
+                              <!-- Jika yang tersimpan adalah email, jangan tampilkan tombol PDF -->
+                              <span class="text-muted small fst-italic">Tidak ada file</span>
+                          <?php else: ?>
+                              <!-- Jika yang tersimpan adalah file pdf -->
+                              <a href="admin/<?= htmlspecialchars($riwayat['sertifikat']) ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                  <i class="bi bi-file-earmark-text-fill me-1"></i> Lihat Sertifikat
+                              </a>
+                          <?php endif; ?>
                       <?php else: ?>
                         <span class="text-muted small fst-italic">Belum ada file</span>
                       <?php endif; ?>
