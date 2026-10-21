@@ -1,5 +1,6 @@
 <?php
-include "../koneksi.php"; // koneksi ke database
+include "../koneksi.php"; 
+/** @var mysqli $koneksi */ //
 
 // Ambil input pencarian
 $search = isset($_GET['nama_unit_kerja']) ? trim($_GET['nama_unit_kerja']) : '';

@@ -42,6 +42,104 @@ $totalData = count($akreditasi);
 $totalPages = ceil($totalData / $limit);
 $akreditasi = array_slice($akreditasi, $start, $limit);
 
+// Proses Tambah Data
+if(isset($_POST["submit"])){
+    $akreditasi_tipe = $_POST["akreditasi"];
+    $id_unit = (isset($_POST["id_unit"]) && $_POST["id_unit"] !== "0") ? (int)$_POST["id_unit"] : 0;
+    $nama_jurusan = (isset($_POST["nama_jurusan"]) && $_POST["nama_jurusan"] !== "0") ? $_POST["nama_jurusan"] : "Tidak Tersedia";
+    $id_prodi = (isset($_POST["id_prodi"]) && $_POST["id_prodi"] !== "0") ? (int)$_POST["id_prodi"] : 0;
+    $peringkat = $_POST["peringkat"];
+    $id_lembaga = (isset($_POST["id_lembaga"]) && $_POST["id_lembaga"] !== "0") ? (int)$_POST["id_lembaga"] : 0;
+    $id_jenis = (isset($_POST["id_jenis"]) && $_POST["id_jenis"] !== "0") ? (int)$_POST["id_jenis"] : 0;
+    $tanggal_mulai = $_POST["tanggal_mulai"];
+    $tanggal_berakhir = $_POST["tanggal_berakhir"];
+    
+    $sertifikat = '';
+    $email_kps = (isset($_POST["email_kps"]) && !empty($_POST["email_kps"])) ? $_POST["email_kps"] : '';
+
+    if ($akreditasi_tipe == 'Program Studi' && $email_kps != '') {
+        $sertifikat = 'email:' . $email_kps;
+    } else {
+        if (!empty($_FILES['sertifikat']['name'])) {
+            $uploadDir = 'uploads/sertifikat/';
+            $fileName = time() . '-' . basename($_FILES['sertifikat']['name']);
+            $filePath = $uploadDir . $fileName;
+            if (!is_dir($uploadDir)) { mkdir($uploadDir, 0777, true); }
+            $fileType = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+            if ($fileType == 'pdf') {
+                if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
+                    $sertifikat = $filePath;
+                }
+            }
+        }
+    }
+
+    $sql = "INSERT INTO akreditasi (akreditasi, id_unit, nama_jurusan, id_prodi, peringkat, id_lembaga, id_jenis, tanggal_mulai, tanggal_berakhir, sertifikat) 
+            VALUES ('$akreditasi_tipe', '$id_unit', '$nama_jurusan', '$id_prodi', '$peringkat', '$id_lembaga', '$id_jenis', '$tanggal_mulai', '$tanggal_berakhir', '$sertifikat')";
+    $result=mysqli_query($koneksi,$sql);
+    if($result){
+        echo "<script>alert('Data telah ditambahkan'); window.location='akreditasi.php'</script>";
+    }else{
+        echo "<script>alert('Data gagal ditambahkan!'); window.location='akreditasi.php'</script>";
+    }
+}
+
+// Proses Edit Data
+if(isset($_POST["update"])){
+    $id_akreditasi = $_POST["id_akreditasi"];
+    $akreditasi_tipe = $_POST["akreditasi"];
+    $id_unit = (isset($_POST["id_unit"]) && $_POST["id_unit"] !== "0") ? (int)$_POST["id_unit"] : 0;
+    $nama_jurusan = (isset($_POST["nama_jurusan"]) && $_POST["nama_jurusan"] !== "0") ? $_POST["nama_jurusan"] : "Tidak Tersedia";
+    $id_prodi = (isset($_POST["id_prodi"]) && $_POST["id_prodi"] !== "0") ? (int)$_POST["id_prodi"] : 0;
+    $peringkat = $_POST["peringkat"];
+    $id_lembaga = (isset($_POST["id_lembaga"]) && $_POST["id_lembaga"] !== "0") ? (int)$_POST["id_lembaga"] : 0;
+    $id_jenis = (isset($_POST["id_jenis"]) && $_POST["id_jenis"] !== "0") ? (int)$_POST["id_jenis"] : 0;
+    $tanggal_mulai = $_POST["tanggal_mulai"];
+    $tanggal_berakhir = $_POST["tanggal_berakhir"];
+    
+    $email_kps = (isset($_POST["email_kps"]) && !empty($_POST["email_kps"])) ? $_POST["email_kps"] : '';
+    $sertifikat_sql = "";
+
+    if ($akreditasi_tipe == 'Program Studi' && $email_kps != '') {
+        $sertifikat_sql = ", sertifikat='email:" . mysqli_real_escape_string($koneksi, $email_kps) . "'";
+    } else if (!empty($_FILES['sertifikat']['name'])) {
+        $uploadDir = 'uploads/sertifikat/';
+        $fileName = time() . '-' . basename($_FILES['sertifikat']['name']);
+        $filePath = $uploadDir . $fileName;
+        if (!is_dir($uploadDir)) { mkdir($uploadDir, 0777, true); }
+        $fileType = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if ($fileType == 'pdf') {
+            if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
+                $sertifikat_sql = ", sertifikat='" . $filePath . "'";
+            }
+        }
+    }
+
+    $sql = "UPDATE akreditasi SET 
+            akreditasi='$akreditasi_tipe', id_unit='$id_unit', nama_jurusan='$nama_jurusan', id_prodi='$id_prodi', 
+            peringkat='$peringkat', id_lembaga='$id_lembaga', id_jenis='$id_jenis', 
+            tanggal_mulai='$tanggal_mulai', tanggal_berakhir='$tanggal_berakhir' 
+            $sertifikat_sql 
+            WHERE id_akreditasi='$id_akreditasi'";
+            
+    $result = mysqli_query($koneksi, $sql);
+    if($result){
+        echo "<script>alert('Data telah diupdate'); window.location='akreditasi.php'</script>";
+    }else{
+        echo "<script>alert('Data gagal diupdate!'); window.location='akreditasi.php'</script>";
+    }
+}
+
+// Proses Delete Data
+if (isset($_POST["delete"])) {
+    $id_akreditasi = mysqli_real_escape_string($koneksi, $_POST["id_akreditasi"]);
+    $delete = mysqli_query($koneksi, "DELETE FROM akreditasi WHERE id_akreditasi='$id_akreditasi'");
+    if ($delete) {
+        echo "<script>alert('Data Berhasil Dihapus'); window.location='akreditasi.php';</script>";
+    } else {
+        echo "<script>alert('Data Gagal Dihapus: " . mysqli_error($koneksi) . "'); window.location='akreditasi.php';</script>";
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -72,6 +170,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
     .table-custom td, .table-custom th { text-align: center; vertical-align: middle; }
     .table-custom .btn-icon { padding: 0; margin: 0; border: none; background: transparent; font-size: 16px; }
     .table-custom .btn-icon i { font-size: 18px; margin: 0; }
+    .table-custom .btn-warning i { color: #ffc107; }
     .table-custom .btn-danger i { color: #dc3545; }
     .table-custom .btn-icon:hover { color: #0d83fd; }
 
@@ -94,23 +193,24 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
     </style>
 
 <script>
-    function showQuestions(value) {
-        document.getElementById('id_unit').classList.add('hidden');
-        document.getElementById('nama_jurusan').classList.add('hidden');
-        document.getElementById('id_prodi').classList.add('hidden');
-        document.getElementById('email_kps').classList.add('hidden'); // Sembunyikan email
+    function showQuestions(value, prefix = '') {
+        document.getElementById(prefix + 'id_unit').classList.add('hidden');
+        document.getElementById(prefix + 'nama_jurusan').classList.add('hidden');
+        document.getElementById(prefix + 'id_prodi').classList.add('hidden');
+        document.getElementById(prefix + 'email_kps').classList.add('hidden');
+        
         if (value == 'Unit Kerja') {
-            document.getElementById('id_unit').classList.remove('hidden');
+            document.getElementById(prefix + 'id_unit').classList.remove('hidden');
         }
         if (value == 'Program Studi') {
-            document.getElementById('nama_jurusan').classList.remove('hidden');
-            document.getElementById('id_prodi').classList.remove('hidden');
-            document.getElementById('email_kps').classList.remove('hidden'); // Tampilkan email
+            document.getElementById(prefix + 'nama_jurusan').classList.remove('hidden');
+            document.getElementById(prefix + 'id_prodi').classList.remove('hidden');
+            document.getElementById(prefix + 'email_kps').classList.remove('hidden');
         }
     }
 
-    function filterProdi(jurusan) {
-        var select = document.getElementById('select_prodi');
+    function filterProdi(jurusan, prefix = '') {
+        var select = document.getElementById(prefix + 'select_prodi');
         for (var i = 0; i < select.options.length; i++) {
             var opt = select.options[i];
             if (opt.value === '0') continue;
@@ -119,6 +219,45 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
             opt.disabled = !cocok;
         }
         select.value = '0';
+    }
+
+    // FUNGSI UNTUK MENGISI FORM EDIT OTOMATIS
+    function editData(data) {
+        document.getElementById('edit_id_akreditasi').value = data.id_akreditasi;
+        document.getElementById('edit_tanggal_mulai').value = data.tanggal_mulai;
+        document.getElementById('edit_tanggal_berakhir').value = data.tanggal_berakhir;
+        document.getElementById('edit_peringkat').value = data.peringkat;
+        document.getElementById('edit_id_lembaga').value = data.id_lembaga;
+        document.getElementById('edit_id_jenis').value = data.id_jenis;
+
+        if(data.akreditasi === 'Unit Kerja') {
+            document.getElementById('edit_radio_unit').checked = true;
+            showQuestions('Unit Kerja', 'edit_');
+            document.getElementById('edit_id_unit').value = data.id_unit;
+        } else {
+            document.getElementById('edit_radio_prodi').checked = true;
+            showQuestions('Program Studi', 'edit_');
+            
+            // Set Jurusan (Looping karena ada karakter khusus)
+            var selJurusan = document.getElementById('edit_nama_jurusan');
+            for(var i=0; i<selJurusan.options.length; i++){
+                if(selJurusan.options[i].value === data.nama_jurusan) selJurusan.selectedIndex = i;
+            }
+            
+            // Set Prodi
+            filterProdi(data.nama_jurusan, 'edit_');
+            var selProdi = document.getElementById('edit_select_prodi');
+            for(var i=0; i<selProdi.options.length; i++){
+                if(selProdi.options[i].value === data.id_prodi.toString()) selProdi.selectedIndex = i;
+            }
+
+            // Set Email KPS (Jika ada)
+            if(data.sertifikat && data.sertifikat.startsWith('email:')) {
+                document.getElementById('edit_email_kps').value = data.sertifikat.substring(6);
+            } else {
+                document.getElementById('edit_email_kps').value = '';
+            }
+        }
     }
 </script>
 
@@ -219,58 +358,64 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 <th>Jenis Akreditasi</th>
                                 <th>Tanggal Mulai</th>
                                 <th>Tanggal Berakhir</th>
-                                <th>Sertifikat / Email KPS</th>
+                                <th>Sertifikat</th>
+                                <th>Email KPS</th>
                                 <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (!empty($akreditasi)): ?>
-                                <?php $id=1; ?>
-                                <?php foreach ($akreditasi as $row): ?>
+                                <?php $id=1; foreach ($akreditasi as $row): ?>
                                 <tr>
-                                    <td><?php echo $id; ?></td>
-                                    <td><?= !empty($row['nama_unit_kerja']) ? $row['nama_unit_kerja'] : "Tidak Tersedia" ?></td>
-                                    <td><?= !empty($row['nama_jurusan']) ? $row['nama_jurusan'] : "Tidak Tersedia" ?></td>
-                                    <td><?= !empty($row['nama_program_studi']) ? $row['nama_program_studi'] : "Tidak Tersedia" ?></td>
-                                    <td><?php echo $row["peringkat"]; ?></td>
-                                    <td><?php echo strtoupper($row["nama_lembaga"]); ?></td>
-                                    <td><?php echo $row["jenis_akreditasi"]; ?></td>
-                                    <td><?php echo $row["tanggal_mulai"]; ?></td>
-                                    <td><?php echo $row["tanggal_berakhir"]; ?></td>
+                                    <td><?= $id++ ?></td>
+                                    <td><?= !empty($row['nama_unit_kerja']) ? $row['nama_unit_kerja'] : "-" ?></td>
+                                    <td><?= !empty($row['nama_jurusan']) ? $row['nama_jurusan'] : "-" ?></td>
+                                    <td><?= !empty($row['nama_program_studi']) ? $row['nama_program_studi'] : "-" ?></td>
+                                    <td><?= $row["peringkat"] ?></td>
+                                    <td><?= strtoupper($row["nama_lembaga"]) ?></td>
+                                    <td><?= $row["jenis_akreditasi"] ?></td>
+                                    <td><?= $row["tanggal_mulai"] ?></td>
+                                    <td><?= $row["tanggal_berakhir"] ?></td>
+                                    
+                                    <?php 
+                                        $is_email = (!empty($row['sertifikat']) && strpos($row['sertifikat'], 'email:') === 0);
+                                        $sertifikat_val = ($is_email) ? '' : $row['sertifikat'];
+                                        $email_val = ($is_email) ? substr($row['sertifikat'], 6) : '';
+                                    ?>
                                     <td>
-                                    <?php if (!empty($row['sertifikat'])): ?>
-                                        <?php if (strpos($row['sertifikat'], 'email:') === 0): ?>
-                                            <!-- Tampilkan email jika berupa data email -->
-                                            <span class="badge bg-info text-dark"><i class="fas fa-envelope"></i> <?= htmlspecialchars(substr($row['sertifikat'], 6)) ?></span>
+                                        <?php if (!empty($sertifikat_val)): ?>
+                                            <a href="<?= $sertifikat_val ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> Lihat PDF</a>
                                         <?php else: ?>
-                                            <!-- Tampilkan tombol View jika berupa file PDF -->
-                                            <a href="<?php echo $row['sertifikat']; ?>" target="_blank" class="btn btn-icon btn-info">
-                                                <i class="fas fa-eye"></i> View
-                                            </a>
+                                            <span class="text-muted">-</span>
                                         <?php endif; ?>
-                                    <?php else: ?>
-                                        <span class="text-muted">No Data</span>
-                                    <?php endif; ?>
                                     </td>
                                     <td>
-                                        <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?php echo $row['id_akreditasi']; ?>"><i class="fas fa-trash-alt"></i></button>                                    
+                                        <?php if (!empty($email_val)): ?>
+                                            <span class="text-dark"><?= htmlspecialchars($email_val) ?></span>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <!-- Tombol Sejajar Kiri-Kanan -->
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit" onclick='editData(<?= json_encode($row) ?>)' title="Edit"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?= $row['id_akreditasi'] ?>" title="Hapus"><i class="fas fa-trash-alt"></i></button>                                    
+                                        </div>
                                     </td>
                                 </tr>
-                                <?php $id++; ?>
                                 <?php endforeach; ?>
                                 <?php else: ?>
-                                <tr>
-                                    <td colspan="11">Tidak ada data yang tersedia.</td>
-                                </tr>
+                                <tr><td colspan="12">Tidak ada data yang tersedia.</td></tr>
                                 <?php endif; ?>
                             </tbody>
                             </table>
                         </div>
+                        
                         <!-- Pagination -->
                         <div class="showing-info text-center mb-3">
                             Menampilkan <?php echo $start + 1; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
                         </div>
-
                         <nav aria-label="Page navigation">
                             <ul class="pagination pagination-custom">
                                 <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
@@ -291,60 +436,6 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                 </div>
             </div>
             <!-- End Main Content -->
-
-            <!-- Proses Tambah Data -->
-            <?php
-            if(isset($_POST["submit"])){
-                $akreditasi=$_POST["akreditasi"];
-                $id_unit = (isset($_POST["id_unit"]) && $_POST["id_unit"] !== "0") ? (int)$_POST["id_unit"] : 0;
-                $nama_jurusan = (isset($_POST["nama_jurusan"]) && $_POST["nama_jurusan"] !== "0") ? $_POST["nama_jurusan"] : "Tidak Tersedia";
-                $id_prodi = (isset($_POST["id_prodi"]) && $_POST["id_prodi"] !== "0") ? (int)$_POST["id_prodi"] : 0;
-                $peringkat=$_POST["peringkat"];
-                $id_lembaga = (isset($_POST["id_lembaga"]) && $_POST["id_lembaga"] !== "0") ? (int)$_POST["id_lembaga"] : 0;
-                $id_jenis = (isset($_POST["id_jenis"]) && $_POST["id_jenis"] !== "0") ? (int)$_POST["id_jenis"] : 0;
-                $tanggal_mulai=$_POST["tanggal_mulai"];
-                $tanggal_berakhir=$_POST["tanggal_berakhir"];
-                
-                $sertifikat = '';
-                $email_kps = (isset($_POST["email_kps"]) && !empty($_POST["email_kps"])) ? $_POST["email_kps"] : '';
-
-                // Trik: Jika yang dipilih Program Studi dan email diisi, simpan email dengan awalan 'email:'
-                if ($akreditasi == 'Program Studi' && $email_kps != '') {
-                    $sertifikat = 'email:' . $email_kps;
-                } else {
-                    // Upload file jika yang diisi bukan email (atau jika Unit Kerja)
-                    if (!empty($_FILES['sertifikat']['name'])) {
-                        $uploadDir = 'uploads/sertifikat/';
-                        $fileName = time() . '-' . basename($_FILES['sertifikat']['name']);
-                        $filePath = $uploadDir . $fileName;
-
-                        if (!is_dir($uploadDir)) {
-                            mkdir($uploadDir, 0777, true);
-                        }
-
-                        $fileType = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-                        if ($fileType == 'pdf') {
-                            if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
-                                $sertifikat = $filePath;
-                            } else {
-                                echo "<script>alert('Gagal mengupload sertifikat!');</script>";
-                            }
-                        } else {
-                            echo "<script>alert('Hanya file dengan format pdf yang diperbolehkan!');</script>";
-                        }
-                    }
-                }
-
-                $sql = "INSERT INTO akreditasi (akreditasi, id_unit, nama_jurusan, id_prodi, peringkat, id_lembaga, id_jenis, tanggal_mulai, tanggal_berakhir, sertifikat) 
-                        VALUES ('$akreditasi', '$id_unit', '$nama_jurusan', '$id_prodi', '$peringkat', '$id_lembaga', '$id_jenis', '$tanggal_mulai', '$tanggal_berakhir', '$sertifikat')";
-                $result=mysqli_query($koneksi,$sql);
-                if($result){
-                    echo "<script>alert('Data telah ditambahkan'); window.location='akreditasi.php'</script>";
-                }else{
-                    echo "<script>alert('Data gagal ditambahkan!'); window.location='akreditasi.php'</script>";
-                }
-            }
-            ?>
 
             <!-- Modal Tambah Data -->
             <div class="modal fade" id="modalTambah" tabindex="-1" aria-labelledby="modalTambahLabel" aria-hidden="true">
@@ -371,44 +462,26 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                     <label for="id_unit" class="form-label">Nama Unit Kerja</label>
                                     <select class="form-select" name="id_unit">
                                         <option value="0" selected disabled>-- Pilih Unit Kerja --</option>
-                                        <?php
-                                            $ambil = mysqli_query($koneksi,"SELECT * FROM unit");
-                                            while ($data = mysqli_fetch_assoc($ambil)){
-                                                echo '<option value="'.$data['id_unit'].'">'.$data['nama_unit_kerja'].'</option>';
-                                            }
-                                        ?>
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT * FROM unit"); while ($data = mysqli_fetch_assoc($ambil)){ echo '<option value="'.$data['id_unit'].'">'.$data['nama_unit_kerja'].'</option>'; } ?>
                                     </select>
                                 </div>
                                 <div class="mb-3 hidden" id="nama_jurusan">
                                     <label for="nama_jurusan" class="form-label">Nama Jurusan</label>
                                     <select class="form-select" name="nama_jurusan" onchange="filterProdi(this.value)">
                                         <option value="0" selected disabled>-- Pilih Jurusan --</option>
-                                        <?php
-                                            $ambil = mysqli_query($koneksi,"SELECT DISTINCT nama_jurusan FROM program_studi WHERE nama_jurusan <> '' ORDER BY nama_jurusan");
-                                            while ($data = mysqli_fetch_assoc($ambil)){
-                                                $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES);
-                                                echo '<option value="'.$jur.'">'.$jur.'</option>';
-                                            }
-                                        ?>
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT DISTINCT nama_jurusan FROM program_studi WHERE nama_jurusan <> '' ORDER BY nama_jurusan"); while ($data = mysqli_fetch_assoc($ambil)){ $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="'.$jur.'">'.$jur.'</option>'; } ?>
                                     </select>
                                 </div>
                                 <div class="mb-3 hidden" id="id_prodi">
                                     <label for="id_prodi" class="form-label">Nama Program Studi</label>
                                     <select class="form-select" name="id_prodi" id="select_prodi">
                                         <option value="0" selected disabled>-- Pilih Program Studi --</option>
-                                        <?php
-                                            $ambil = mysqli_query($koneksi,"SELECT * FROM program_studi ORDER BY nama_program_studi");
-                                            while ($data = mysqli_fetch_assoc($ambil)){
-                                                $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES);
-                                                echo '<option value="'.$data['id_prodi'].'" data-jurusan="'.$jur.'" hidden disabled>'.$data['nama_program_studi'].'</option>';
-                                            }
-                                        ?>
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT * FROM program_studi ORDER BY nama_program_studi"); while ($data = mysqli_fetch_assoc($ambil)){ $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="'.$data['id_prodi'].'" data-jurusan="'.$jur.'" hidden disabled>'.$data['nama_program_studi'].'</option>'; } ?>
                                     </select>
                                 </div>
-                                <!-- INPUT EMAIL KPS BARU -->
                                 <div class="mb-3 hidden" id="email_kps">
                                     <label for="email_kps" class="form-label">Email KPS / Kaprodi</label>
-                                    <input type="email" class="form-control" name="email_kps" placeholder="contoh: kps_if@polibatam.ac.id">
+                                    <input type="email" class="form-control" name="email_kps" placeholder="xxxx@polibatam.ac.id">
                                 </div>
                                 <div class="mb-3">
                                     <label for="peringkat" class="form-label">Predikat</label>
@@ -426,24 +499,14 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                     <label for="id_lembaga" class="form-label">Lembaga</label>
                                     <select class="form-select" name="id_lembaga">
                                         <option value="0" selected disabled>-- Pilih Lembaga --</option>
-                                        <?php
-                                            $ambil = mysqli_query($koneksi,"SELECT * FROM lembaga");
-                                            while ($data = mysqli_fetch_assoc($ambil)){
-                                                echo '<option value="'.$data['id_lembaga'].'">'.strtoupper($data['nama_lembaga']).'</option>';
-                                            }
-                                        ?>
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT * FROM lembaga"); while ($data = mysqli_fetch_assoc($ambil)){ echo '<option value="'.$data['id_lembaga'].'">'.strtoupper($data['nama_lembaga']).'</option>'; } ?>
                                     </select>
                                 </div>
                                 <div class="mb-3" id="id_jenis">
                                     <label for="id_jenis" class="form-label">Jenis Akreditasi</label>
                                     <select class="form-select" name="id_jenis">
                                         <option value="0" selected disabled>-- Pilih Jenis Akreditasi --</option>
-                                        <?php
-                                            $ambil = mysqli_query($koneksi,"SELECT * FROM jenis_akreditasi");
-                                            while ($data = mysqli_fetch_assoc($ambil)){
-                                                echo '<option value="'.$data['id_jenis'].'">'.$data['jenis_akreditasi'].'</option>';
-                                            }
-                                        ?>
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT * FROM jenis_akreditasi"); while ($data = mysqli_fetch_assoc($ambil)){ echo '<option value="'.$data['id_jenis'].'">'.$data['jenis_akreditasi'].'</option>'; } ?>
                                     </select>
                                 </div>
                                 <div class="mb-3">
@@ -468,21 +531,99 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                 </div>
             </div>
 
+            <!-- Modal Edit Data -->
+            <div class="modal fade" id="modalEdit" tabindex="-1" aria-labelledby="modalEditLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalEditLabel">Edit Data Akreditasi</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="id_akreditasi" id="edit_id_akreditasi">
+                        <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Akreditasi</label>
+                                    <div class="flex flex-col">
+                                        <div class="flex items-center px-4">
+                                            <input id="edit_radio_unit" type="radio" value="Unit Kerja" name="akreditasi" onclick="showQuestions(this.value, 'edit_')" class="form-check-input" required/>
+                                                <label class="form-label px-2">Unit Kerja</label> 
+                                            <input id="edit_radio_prodi" type="radio" value="Program Studi" name="akreditasi" onclick="showQuestions(this.value, 'edit_')" class="form-check-input" required/>
+                                                <label class="form-label px-2">Program Studi</label> 
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3 hidden" id="edit_id_unit">
+                                    <label for="edit_id_unit" class="form-label">Nama Unit Kerja</label>
+                                    <select class="form-select" name="id_unit" id="edit_id_unit">
+                                        <option value="0" selected disabled>-- Pilih Unit Kerja --</option>
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT * FROM unit"); while ($data = mysqli_fetch_assoc($ambil)){ echo '<option value="'.$data['id_unit'].'">'.$data['nama_unit_kerja'].'</option>'; } ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3 hidden" id="edit_nama_jurusan">
+                                    <label for="edit_nama_jurusan" class="form-label">Nama Jurusan</label>
+                                    <select class="form-select" name="nama_jurusan" id="edit_nama_jurusan" onchange="filterProdi(this.value, 'edit_')">
+                                        <option value="0" selected disabled>-- Pilih Jurusan --</option>
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT DISTINCT nama_jurusan FROM program_studi WHERE nama_jurusan <> '' ORDER BY nama_jurusan"); while ($data = mysqli_fetch_assoc($ambil)){ $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="'.$jur.'">'.$jur.'</option>'; } ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3 hidden" id="edit_id_prodi">
+                                    <label for="edit_id_prodi" class="form-label">Nama Program Studi</label>
+                                    <select class="form-select" name="id_prodi" id="edit_select_prodi">
+                                        <option value="0" selected disabled>-- Pilih Program Studi --</option>
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT * FROM program_studi ORDER BY nama_program_studi"); while ($data = mysqli_fetch_assoc($ambil)){ $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="'.$data['id_prodi'].'" data-jurusan="'.$jur.'" hidden disabled>'.$data['nama_program_studi'].'</option>'; } ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3 hidden" id="edit_email_kps">
+                                    <label for="edit_email_kps" class="form-label">Email KPS / Kaprodi</label>
+                                    <input type="email" class="form-control" name="email_kps" id="edit_email_kps" placeholder="xxxx@polibatam.ac.id">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_peringkat" class="form-label">Predikat</label>
+                                    <select class="form-select" name="peringkat" id="edit_peringkat" required>
+                                        <option value="Unggul">Unggul</option>
+                                        <option value="Baik Sekali">Baik Sekali</option>
+                                        <option value="Baik">Baik</option>
+                                        <option value="Cukup Sekali">Cukup Sekali</option>
+                                        <option value="Cukup">Cukup</option>
+                                        <option value="Terakreditasi">Terakreditasi</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_id_lembaga" class="form-label">Lembaga</label>
+                                    <select class="form-select" name="id_lembaga" id="edit_id_lembaga">
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT * FROM lembaga"); while ($data = mysqli_fetch_assoc($ambil)){ echo '<option value="'.$data['id_lembaga'].'">'.strtoupper($data['nama_lembaga']).'</option>'; } ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_id_jenis" class="form-label">Jenis Akreditasi</label>
+                                    <select class="form-select" name="id_jenis" id="edit_id_jenis">
+                                        <?php $ambil = mysqli_query($koneksi,"SELECT * FROM jenis_akreditasi"); while ($data = mysqli_fetch_assoc($ambil)){ echo '<option value="'.$data['id_jenis'].'">'.$data['jenis_akreditasi'].'</option>'; } ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_tanggal_mulai" class="form-label">Tanggal Mulai</label>
+                                    <input type="date" class="form-control" name="tanggal_mulai" id="edit_tanggal_mulai" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_tanggal_berakhir" class="form-label">Tanggal Berakhir</label>
+                                    <input type="date" class="form-control" name="tanggal_berakhir" id="edit_tanggal_berakhir" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="sertifikat" class="form-label">Upload Sertifikat Baru (PDF)</label>
+                                    <input type="file" class="form-control" id="sertifikat" name="sertifikat" accept=".pdf">
+                                    <small class="text-muted">*Kosongkan jika tidak ingin mengubah Sertifikat / Email KPS.</small>
+                                </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" name="update" class="btn btn-primary">Update Data</button>
+                        </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <?php foreach ($akreditasi as $row): ?>
-
-            <!-- Proses Delete -->
-            <?php
-            if (isset($_POST["delete"])) {
-                $id_akreditasi = mysqli_real_escape_string($koneksi, $_POST["id_akreditasi"]);
-                $delete = mysqli_query($koneksi, "DELETE FROM akreditasi WHERE id_akreditasi='$id_akreditasi'");
-                if ($delete) {
-                    echo "<script>alert('Data Berhasil Dihapus'); window.location='akreditasi.php';</script>";
-                } else {
-                    echo "<script>alert('Data Gagal Dihapus: " . mysqli_error($koneksi) . "'); window.location='akreditasi.php';</script>";
-                }
-            }
-            ?>
-
             <!-- Modal Delete -->
             <div class="modal fade" id="modalDelete<?php echo $row['id_akreditasi']; ?>" tabindex="-1" aria-labelledby="modalDeleteLabel" aria-hidden="true">
                 <div class="modal-dialog">

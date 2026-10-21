@@ -1,5 +1,5 @@
 <?php
-include '../koneksi.php'; // Pastikan koneksi berhasil
+include '../koneksi.php'; 
 
 $hasil_kepuasan_jurusan = query("SELECT * FROM hasil_kepuasan_jurusan ORDER BY tahun DESC LIMIT 1")[0];
 $hasil_kepuasan_unit = query("SELECT * FROM hasil_kepuasan_unit ORDER BY tahun DESC LIMIT 1")[0];
