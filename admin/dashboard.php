@@ -1,5 +1,6 @@
 <?php
 include '../koneksi.php'; 
+/** @var mysqli $koneksi */ //
 
 $hasil_kepuasan_jurusan = query("SELECT * FROM hasil_kepuasan_jurusan ORDER BY tahun DESC LIMIT 1")[0];
 $hasil_kepuasan_unit = query("SELECT * FROM hasil_kepuasan_unit ORDER BY tahun DESC LIMIT 1")[0];

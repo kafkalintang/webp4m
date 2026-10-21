@@ -1,5 +1,6 @@
 <?php
 include "../koneksi.php";
+/** @var mysqli $koneksi */ //
 $program_studi=query("SELECT * FROM program_studi");
 
 // Pagination setup

@@ -1,5 +1,7 @@
 <?php
 include "../koneksi.php";
+/** @var mysqli $koneksi */ //
+
 $program_video=query("SELECT * FROM program_video");
 
 // Pagination setup

@@ -1,11 +1,14 @@
 <?php
 include "../koneksi.php";
-$hasil_kepuasan_unit=query("SELECT * FROM hasil_kepuasan_unit");
+/** @var mysqli $koneksi */
+
+$hasil_kepuasan_unit = query("SELECT * FROM hasil_kepuasan_unit");
 
 // Pagination setup
 $limit = 10; 
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $start = ($page > 1) ? ($page * $limit) - $limit : 0;
+
 // Pencarian
 $search = isset($_GET['tahun']) ? trim($_GET['tahun']) : '';
 if ($search !== '') {
@@ -13,6 +16,7 @@ if ($search !== '') {
         return stripos($item['tahun'], $search) !== false;
     });
 }
+
 // Query untuk mendapatkan data
 $totalData = count($hasil_kepuasan_unit);
 $totalPages = ceil($totalData / $limit);
@@ -42,156 +46,32 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
     <link href="css/style.css" rel="stylesheet">
 
     <style>
-    .logo-image {
-        height: 40px; 
-        width: auto; 
-    }
+    .logo-image { height: 40px; width: auto; }
+    .table-custom { background-color: white; color: #333; width: 100%; }
+    .table-custom thead th { background-color: #0d83fd; color: white; text-align: center; }
+    .table-custom td, .table-custom th { text-align: center; vertical-align: middle; }
+    .table-custom .btn-icon { padding: 0; margin: 0; border: none; background: transparent; font-size: 16px; }
+    .table-custom .btn-icon i { font-size: 18px; margin: 0; }
+    .table-custom .btn-warning i { color: #ffc107; }
+    .table-custom .btn-danger i { color: #dc3545; }
+    .table-custom .btn-icon:hover { color: #0d83fd; }
 
-    .table-custom {
-      background-color: white;
-      color: #333;
-      width: 100%;
-    }
-    .table-custom thead th {
-      background-color: #0d83fd;
-      color: white;
-      text-align: center;
-    }
-    .table-custom td, .table-custom th {
-      text-align: center;
-      vertical-align: middle;
-    }
-    .table-custom .btn-icon {
-      padding: 0;
-      margin: 0;
-      border: none;
-      background: transparent;
-      font-size: 16px;
-    }
-    .table-custom .btn-icon i {
-      font-size: 18px;
-      margin: 0;
-    }
-    .table-custom .btn-warning i {
-      color: #ffc107; 
-    }
-    .table-custom .btn-danger i {
-      color: #dc3545; 
-    }
-    .table-custom .btn-icon:hover {
-      color: #0d83fd;
-    }
+    .pagination-custom { display: flex; justify-content: center; align-items: center; list-style: none; padding: 0; margin: 15px 0; gap: 5px; }
+    .pagination-custom .page-item { display: flex; align-items: center; justify-content: center; transition: all 0.2s ease-in-out; }
+    .pagination-custom .page-link { display: flex; align-items: center; justify-content: center; padding: 6px 10px; font-size: 12px; font-weight: 500; color: #0d83fd; background-color: white; border: 1.5px solid #0d83fd; border-radius: 8px; box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.08); transition: all 0.2s ease-in-out; }
+    .pagination-custom .page-item.active .page-link { background-color: #0d83fd; color: white; border-color: #0d83fd; box-shadow: 1px 1px 10px rgba(13, 131, 253, 0.2); }
+    .pagination-custom .page-link:hover { background-color: rgba(13, 131, 253, 0.1); color: #0d83fd; transform: scale(1.05); }
+    .pagination-custom .page-item.disabled .page-link { color: #aaa; border-color: #ddd; background-color: #f8f9fa; cursor: not-allowed; }
+    .pagination-custom .arrow { font-size: 14px; padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 
-    .pagination-custom {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    list-style: none;
-    padding: 0;
-    margin: 15px 0; /* Margin dikurangi */
-    gap: 5px; /* Mengurangi jarak antar tombol */
-    }
-
-    .pagination-custom .page-item {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease-in-out;
-    }
-
-    .pagination-custom .page-link {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px 10px; /* Padding lebih kecil */
-        font-size: 12px; /* Font-size diperkecil */
-        font-weight: 500;
-        color: #0d83fd;
-        background-color: white;
-        border: 1.5px solid #0d83fd; /* Border lebih tipis */
-        border-radius: 8px; /* Lebih kecil */
-        box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.08);
-        transition: all 0.2s ease-in-out;
-    }
-
-    .pagination-custom .page-item.active .page-link {
-        background-color: #0d83fd;
-        color: white;
-        border-color: #0d83fd;
-        box-shadow: 1px 1px 10px rgba(13, 131, 253, 0.2);
-    }
-
-    .pagination-custom .page-link:hover {
-        background-color: rgba(13, 131, 253, 0.1);
-        color: #0d83fd;
-        transform: scale(1.05);
-    }
-
-    .pagination-custom .page-item.disabled .page-link {
-        color: #aaa;
-        border-color: #ddd;
-        background-color: #f8f9fa;
-        cursor: not-allowed;
-    }
-
-    .pagination-custom .arrow {
-        font-size: 14px; /* Ukuran ikon lebih kecil */
-        padding: 6px; /* Padding lebih kecil */
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .search-bar-wrapper {
-      display: flex;
-      justify-content: flex-start;
-      margin-bottom: 20px;
-    }
-
-    .search-bar-wrapper form {
-      display: flex;
-      align-items: center; 
-    }
-
-    .search-bar {
-      border: 1px solid #0d83fd;
-      border-radius: 20px;
-      padding: 5px 15px;
-      width: 250px;
-      margin-right: -40px; 
-    }
-
-    .btn-cari {
-      background-color: #0d83fd;
-      color: white;
-      border-radius: 20px;
-      padding: 5px 15px;
-      border: none;
-      margin-left: -8px;
-    }
-
-    .btn-cari i {
-      font-size: 18px;
-    }
-
-    .showing-info {
-      font-size: 14px;
-      color: #0d83fd;
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    .btn-tambah {
-    background-color: #0d83fd;
-    color: white;
-    border-radius: 20px;
-    padding: 5px 15px; 
-    border: none;
-    }
-
+    .search-bar-wrapper { display: flex; justify-content: flex-start; margin-bottom: 20px; }
+    .search-bar-wrapper form { display: flex; align-items: center; }
+    .search-bar { border: 1px solid #0d83fd; border-radius: 20px; padding: 5px 15px; width: 250px; margin-right: -40px; }
+    .btn-cari { background-color: #0d83fd; color: white; border-radius: 20px; padding: 5px 15px; border: none; margin-left: -8px; }
+    .btn-cari i { font-size: 18px; }
+    .showing-info { font-size: 14px; color: #0d83fd; text-align: center; margin-bottom: 10px; }
+    .btn-tambah { background-color: #0d83fd; color: white; border-radius: 20px; padding: 5px 15px; border: none; }
     </style>
-
 </head>
 
 <body>
@@ -211,7 +91,7 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
                         <a href="#" class="nav-link dropdown-toggle active" data-bs-toggle="dropdown"><i class="fa fa-cogs me-2"></i>Kelola Layanan</a>
                         <div class="dropdown-menu bg-transparent border-0">
                             <a href="hasil_kepuasan_jurusan.php" class="dropdown-item">Hasil Kepuasan Jurusan</a>
-                            <a href="hasil_kepuasan_unit.php" class="dropdown-item">Hasil Kepuasan Unit Kerja</a>
+                            <a href="hasil_kepuasan_unit.php" class="dropdown-item active">Hasil Kepuasan Unit Kerja</a>
                             <a href="layanan.php" class="dropdown-item">Menu Layanan</a>
                             <a href="isi_layanan.php" class="dropdown-item">Isi Layanan</a>
                         </div>
@@ -242,9 +122,7 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
                             <a href="video_digital.php" class="dropdown-item">Video Digital</a>
                         </div>
                     </div>
-                    <a href="berita.php" class="nav-item nav-link">
-                        <i class="fa fa-clipboard-list me-2"></i>Kelola Berita
-                    </a>
+                    <a href="berita.php" class="nav-item nav-link"><i class="fa fa-clipboard-list me-2"></i>Kelola Berita</a>
                 </div>
             </nav>
         </div>
@@ -256,9 +134,7 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
             <nav class="navbar navbar-expand bg-light navbar-light sticky-top px-4 py-2 shadow-sm">
                 <a href="#" class="sidebar-toggler flex-shrink-0"><i class="fa fa-bars"></i></a>
                 <div class="navbar-nav align-items-center ms-auto">
-                <a href="../index.php" class="btn btn-link text-dark" style="position: absolute; right: 20px;">
-                    <i class="fa fa-sign-out-alt"></i>
-                </a>
+                <a href="../index.php" class="btn btn-link text-dark" style="position: absolute; right: 20px;"><i class="fa fa-sign-out-alt"></i></a>
                 </div>
             </nav>
             <!-- Navbar -->
@@ -296,7 +172,7 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
                                 <?php $id=1; ?>
                                 <?php foreach ($hasil_kepuasan_unit as $row): ?>
                                 <tr>
-                                    <td><?php echo $id; ?></td>
+                                    <td><?php echo $id + $start; ?></td>
                                     <td><?php echo $row["tahun"]; ?></td>
                                     <td><?php echo $row["text"]; ?></td>
                                     <td>
@@ -309,15 +185,18 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
                                     <?php endif; ?>
                                     </td>
                                     <td>
-                                        <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit<?php echo $row['id_hasil_unit']; ?>"><i class="fas fa-edit"></i></button>
-                                        <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?php echo $row['id_hasil_unit']; ?>"><i class="fas fa-trash-alt"></i></button>                                    
+                                        <!-- Tombol Sejajar Kiri-Kanan -->
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit<?php echo $row['id_hasil_unit']; ?>" title="Edit"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?php echo $row['id_hasil_unit']; ?>" title="Hapus"><i class="fas fa-trash-alt"></i></button>                                    
+                                        </div>
                                     </td>
                                 </tr>
                                 <?php $id++; ?>
                                 <?php endforeach; ?>
                                 <?php else: ?>
                                 <tr>
-                                    <td colspan="10">Tidak ada data yang tersedia.</td>
+                                    <td colspan="5">Tidak ada data yang tersedia.</td>
                                 </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -325,21 +204,21 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
                         </div>
                         <!-- Pagination -->
                         <div class="showing-info text-center mb-3">
-                            Menampilkan <?php echo $start + 1; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
+                            Menampilkan <?php echo $totalData > 0 ? $start + 1 : 0; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
                         </div>
 
                         <nav aria-label="Page navigation">
                             <ul class="pagination pagination-custom">
                                 <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
-                                    <a class="page-link arrow" href="?page=<?php echo $page - 1; ?>&tahun=<?php echo $search; ?>" tabindex="-1">←</a>
+                                    <a class="page-link arrow" href="?page=<?php echo $page - 1; ?>&tahun=<?php echo urlencode($search); ?>" tabindex="-1">←</a>
                                 </li>
                                 <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                                 <li class="page-item <?php echo ($page == $i) ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?page=<?php echo $i; ?>&tahun=<?php echo $search; ?>"><?php echo $i; ?></a>
+                                    <a class="page-link" href="?page=<?php echo $i; ?>&tahun=<?php echo urlencode($search); ?>"><?php echo $i; ?></a>
                                 </li>
                                 <?php endfor; ?>
                                 <li class="page-item <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">
-                                    <a class="page-link arrow" href="?page=<?php echo $page + 1; ?>&tahun=<?php echo $search; ?>">→</a>
+                                    <a class="page-link arrow" href="?page=<?php echo $page + 1; ?>&tahun=<?php echo urlencode($search); ?>">→</a>
                                 </li>
                             </ul>
                         </nav>
@@ -379,7 +258,6 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
                 }
 
                 // Simpan data ke database
-
                 $sql = "INSERT INTO hasil_kepuasan_unit (tahun, text, gambar) 
                         VALUES ('$tahun', '$text', '$gambar')";
 
@@ -503,7 +381,8 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
                                 <div class="mb-3">
                                     <label for="ubah_gambar" class="form-label">Gambar</label>
                                     <input type="file" class="form-control" id="ubah_gambar" name="ubah_gambar" accept="image/*">
-                                    <small class="text-muted">File saat ini: <a href="<?php echo $rowedit['gambar']; ?>" target="_blank">Lihat Gambar</a></small>
+                                    <!-- PERBAIKAN: ganti $rowedit['gambar'] jadi $row['gambar'] -->
+                                    <small class="text-muted">File saat ini: <a href="<?php echo $row['gambar']; ?>" target="_blank">Lihat Gambar</a></small>
                                 </div>                        
                             </div>
 
@@ -562,11 +441,8 @@ $hasil_kepuasan_unit = array_slice($hasil_kepuasan_unit, $start, $limit);
                 </div>
             </div>
             <!-- Footer -->
-
         </div>
         <!-- Content -->
-
-        <!-- Back to Top -->
         <a href="#" class="btn btn-lg btn-primary btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 

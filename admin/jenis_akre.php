@@ -1,5 +1,7 @@
 <?php
 include "../koneksi.php";
+/** @var mysqli $koneksi */ //
+
 $jenis_akreditasi=query("SELECT * FROM jenis_akreditasi");
 
 // Pagination setup

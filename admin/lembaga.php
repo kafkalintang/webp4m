@@ -1,5 +1,7 @@
 <?php
 include "../koneksi.php";
+/** @var mysqli $koneksi */ //
+
 $lembaga=query("SELECT * FROM lembaga");
 
 // Pagination setup

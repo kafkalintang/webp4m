@@ -1,5 +1,6 @@
 <?php
 include "../koneksi.php";
+/** @var mysqli $koneksi */ //
 $unit=query("SELECT * FROM unit");
 
 // Pagination setup

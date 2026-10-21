@@ -1,5 +1,7 @@
 <?php
 include "../koneksi.php";
+/** @var mysqli $koneksi */ //
+
 $isi_layanan = query("
     SELECT 
         il.id_isi_layanan,
