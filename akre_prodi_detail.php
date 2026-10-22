@@ -155,7 +155,7 @@ if (mysqli_num_rows($result_riwayat) > 0) {
         <a href="akre_prodi.php" class="btn btn-back btn-sm rounded-pill px-3 py-2">
           <i class="bi bi-arrow-left me-1"></i> Kembali ke Halaman Akreditasi
         </a>
-        <span class="text-muted small fw-medium">P4M / Detail Riwayat Akreditasi</span>
+        <span class="text-muted small fw-medium">/ Detail Riwayat Akreditasi</span>
       </div>
 
       <div class="content-card" data-aos="fade-up" data-aos-delay="100">
