@@ -11,7 +11,7 @@ $start = ($page > 1) ? ($page * $limit) - $limit : 0;
 $search = isset($_GET['nama_program_studi']) ? trim($_GET['nama_program_studi']) : '';
 if ($search !== '') {
     $program_studi = array_filter($program_studi, function ($item) use ($search) {
-        return stripos($item['nama_program_studi'], $search) !== false;
+        return stripos((string)$item['nama_program_studi'], $search) !== false;
     });
 }
 // Query untuk mendapatkan data
@@ -221,7 +221,7 @@ $program_studi = array_slice($program_studi, $start, $limit);
                         <a href="#" class="nav-link dropdown-toggle active" data-bs-toggle="dropdown"><i class="fa fa-user me-2"></i>Kelola Data</a>
                         <div class="dropdown-menu bg-transparent border-0">
                             <a href="unit.php" class="dropdown-item">Unit Kerja</a>
-                            <a href="prodi.php" class="dropdown-item">Program Studi</a>
+                            <a href="prodi.php" class="dropdown-item active">Program Studi</a>
                             <a href="lembaga.php" class="dropdown-item">Lembaga</a>
                             <a href="jenis_akre.php" class="dropdown-item">Jenis Akreditasi</a>
                         </div>
@@ -288,27 +288,31 @@ $program_studi = array_slice($program_studi, $start, $limit);
                                 <th>No</th>
                                 <th>Nama Jurusan</th>
                                 <th>Nama Program Studi</th>
+                                <th>Email KPS</th> <!-- TAMBAHAN KOLOM EMAIL -->
                                 <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (!empty($program_studi)): ?>
-                                <?php $id=1; ?>
+                                <?php $id = $start + 1; ?>
                                 <?php foreach ($program_studi as $row): ?>
                                 <tr>
                                     <td><?php echo $id; ?></td>
-                                    <td><?php echo $row["nama_jurusan"]; ?></td>
-                                    <td><?php echo $row["nama_program_studi"]; ?></td>
+                                    <td><?php echo htmlspecialchars($row["nama_jurusan"]); ?></td>
+                                    <td><?php echo htmlspecialchars($row["nama_program_studi"]); ?></td>
+                                    <td><?php echo !empty($row['email_kps']) ? htmlspecialchars($row['email_kps']) : '<span class="text-muted">-</span>'; ?></td>
                                     <td>
-                                        <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit<?php echo $row['id_prodi']; ?>"><i class="fas fa-edit"></i></button>
-                                        <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?php echo $row['id_prodi']; ?>"><i class="fas fa-trash-alt"></i></button>                                    
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit<?php echo $row['id_prodi']; ?>"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?php echo $row['id_prodi']; ?>"><i class="fas fa-trash-alt"></i></button>                                    
+                                        </div>
                                     </td>
                                 </tr>
                                 <?php $id++; ?>
                                 <?php endforeach; ?>
                                 <?php else: ?>
                                 <tr>
-                                    <td colspan="10">Tidak ada data yang tersedia.</td>
+                                    <td colspan="5">Tidak ada data yang tersedia.</td>
                                 </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -316,21 +320,21 @@ $program_studi = array_slice($program_studi, $start, $limit);
                         </div>
                         <!-- Pagination -->
                         <div class="showing-info text-center mb-3">
-                            Menampilkan <?php echo $start + 1; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
+                            Menampilkan <?php echo ($totalData > 0) ? $start + 1 : 0; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
                         </div>
 
                         <nav aria-label="Page navigation">
                             <ul class="pagination pagination-custom">
                                 <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
-                                    <a class="page-link arrow" href="?page=<?php echo $page - 1; ?>&nama_program_studi=<?php echo $search; ?>" tabindex="-1">←</a>
+                                    <a class="page-link arrow" href="?page=<?php echo $page - 1; ?>&nama_program_studi=<?php echo urlencode($search); ?>" tabindex="-1">←</a>
                                 </li>
                                 <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                                 <li class="page-item <?php echo ($page == $i) ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?page=<?php echo $i; ?>&nama_program_studi=<?php echo $search; ?>"><?php echo $i; ?></a>
+                                    <a class="page-link" href="?page=<?php echo $i; ?>&nama_program_studi=<?php echo urlencode($search); ?>"><?php echo $i; ?></a>
                                 </li>
                                 <?php endfor; ?>
                                 <li class="page-item <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">
-                                    <a class="page-link arrow" href="?page=<?php echo $page + 1; ?>&nama_program_studi=<?php echo $search; ?>">→</a>
+                                    <a class="page-link arrow" href="?page=<?php echo $page + 1; ?>&nama_program_studi=<?php echo urlencode($search); ?>">→</a>
                                 </li>
                             </ul>
                         </nav>
@@ -343,10 +347,12 @@ $program_studi = array_slice($program_studi, $start, $limit);
             <!-- Modal Tambah Data -->
             <?php
             if(isset($_POST["submit"])){
-                $nama_jurusan=$_POST["nama_jurusan"];
-                $nama_program_studi=$_POST["nama_program_studi"];
+                $nama_jurusan = mysqli_real_escape_string($koneksi, $_POST["nama_jurusan"]);
+                $nama_program_studi = mysqli_real_escape_string($koneksi, $_POST["nama_program_studi"]);
+                $email_kps = mysqli_real_escape_string($koneksi, $_POST["email_kps"]); // TANGKAP EMAIL
                 
-                $sql="INSERT INTO program_studi (nama_jurusan, nama_program_studi) VALUES('$_POST[nama_jurusan]','$_POST[nama_program_studi]')";
+                // TAMBAHKAN email_kps KE QUERY
+                $sql="INSERT INTO program_studi (nama_jurusan, nama_program_studi, email_kps) VALUES('$nama_jurusan','$nama_program_studi','$email_kps')";
                 $result=mysqli_query($koneksi,$sql);
                 if($result){
                 echo "<script>alert('Data telah ditambahkan');
@@ -376,6 +382,11 @@ $program_studi = array_slice($program_studi, $start, $limit);
                                     <label for="nama_program_studi" class="form-label">Nama Program Studi</label>
                                     <input type="text" class="form-control" name="nama_program_studi" required>
                                 </div>
+                                <!-- TAMBAHAN INPUT EMAIL -->
+                                <div class="mb-3">
+                                    <label for="email_kps" class="form-label">Email KPS / Kaprodi</label>
+                                    <input type="email" class="form-control" name="email_kps" placeholder="xxxx@polibatam.ac.id">
+                                </div>
                         </div>
                         <div class="modal-footer">
                             <button type="submit" name="submit" class="btn btn-primary">Simpan</button>
@@ -393,10 +404,17 @@ $program_studi = array_slice($program_studi, $start, $limit);
                 $rowedit = mysqli_fetch_array($edit);
 
                 if(isset($_POST["edit"])){
+                    $id_prodi = $_POST["id_prodi"];
+                    $nama_jurusan = mysqli_real_escape_string($koneksi, $_POST["ubah_nama_jurusan"]);
+                    $nama_program_studi = mysqli_real_escape_string($koneksi, $_POST["ubah_nama_program_studi"]);
+                    $email_kps = mysqli_real_escape_string($koneksi, $_POST["ubah_email_kps"]); // TANGKAP EMAIL
+
+                    // TAMBAHKAN email_kps KE QUERY UPDATE
                     $update = mysqli_query($koneksi,"UPDATE program_studi SET 
-                    nama_jurusan='$_POST[ubah_nama_jurusan]',
-                    nama_program_studi='$_POST[ubah_nama_program_studi]'
-                    WHERE id_prodi='$_POST[id_prodi]'");
+                    nama_jurusan='$nama_jurusan',
+                    nama_program_studi='$nama_program_studi',
+                    email_kps='$email_kps'
+                    WHERE id_prodi='$id_prodi'");
     
                     if($update){
                         echo "<script>alert('Data Berhasil Di Edit');
@@ -420,11 +438,16 @@ $program_studi = array_slice($program_studi, $start, $limit);
                         <div class="modal-body">
                                 <div class="mb-3">
                                     <label for="ubah_nama_jurusan" class="form-label">Nama Jurusan</label>
-                                    <input type="text" class="form-control" name="ubah_nama_jurusan" value="<?php echo $rowedit['nama_jurusan']; ?>" required>
+                                    <input type="text" class="form-control" name="ubah_nama_jurusan" value="<?php echo htmlspecialchars($rowedit['nama_jurusan']); ?>" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="ubah_nama_program_studi" class="form-label">Nama Program Studi</label>
-                                    <input type="text" class="form-control" name="ubah_nama_program_studi" value="<?php echo $rowedit['nama_program_studi']; ?>" required>
+                                    <input type="text" class="form-control" name="ubah_nama_program_studi" value="<?php echo htmlspecialchars($rowedit['nama_program_studi']); ?>" required>
+                                </div>
+                                <!-- TAMBAHAN INPUT EMAIL -->
+                                <div class="mb-3">
+                                    <label for="ubah_email_kps" class="form-label">Email KPS / Kaprodi</label>
+                                    <input type="email" class="form-control" name="ubah_email_kps" value="<?php echo htmlspecialchars($rowedit['email_kps'] ?? ''); ?>">
                                 </div>
                         </div>
                         <div class="modal-footer">
@@ -459,7 +482,7 @@ $program_studi = array_slice($program_studi, $start, $limit);
                         <form method="post">
                             <input type="hidden" name="id_prodi" value="<?php echo $row['id_prodi']; ?>">
                             <div class="modal-body">
-                                <p>Apakah Anda yakin ingin menghapus data <b><?php echo $row['nama_program_studi']; ?></b>?</p>
+                                <p>Apakah Anda yakin ingin menghapus data <b><?php echo htmlspecialchars($row['nama_program_studi']); ?></b>?</p>
                             </div>
                             <div class="modal-footer">
                                 <button type="submit" name="delete" class="btn btn-danger">Hapus</button>

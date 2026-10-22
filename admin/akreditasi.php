@@ -20,23 +20,19 @@ if (isset($_POST["submit"])) {
     }
 
     $sertifikat = '';
-    $email_kps = (isset($_POST["email_kps"]) && !empty($_POST["email_kps"])) ? $_POST["email_kps"] : '';
 
-    if ($akreditasi_tipe == 'Program Studi' && $email_kps != '') {
-        $sertifikat = 'email:' . $email_kps;
-    } else {
-        if (!empty($_FILES['sertifikat']['name'])) {
-            $uploadDir = 'uploads/sertifikat/';
-            $fileName = time() . '-' . basename($_FILES['sertifikat']['name']);
-            $filePath = $uploadDir . $fileName;
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
-            }
-            $fileType = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-            if ($fileType == 'pdf') {
-                if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
-                    $sertifikat = $filePath;
-                }
+    // Upload Sertifikat (PDF)
+    if (!empty($_FILES['sertifikat']['name'])) {
+        $uploadDir = 'uploads/sertifikat/';
+        $fileName = time() . '-' . basename($_FILES['sertifikat']['name']);
+        $filePath = $uploadDir . $fileName;
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+        $fileType = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if ($fileType == 'pdf') {
+            if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
+                $sertifikat = $filePath;
             }
         }
     }
@@ -69,12 +65,10 @@ if (isset($_POST["update"])) {
         $nama_jurusan = "";
     }
 
-    $email_kps = (isset($_POST["email_kps"]) && !empty($_POST["email_kps"])) ? $_POST["email_kps"] : '';
     $sertifikat_sql = "";
 
-    if ($akreditasi_tipe == 'Program Studi' && $email_kps != '') {
-        $sertifikat_sql = ", sertifikat='email:" . mysqli_real_escape_string($koneksi, $email_kps) . "'";
-    } else if (!empty($_FILES['sertifikat']['name'])) {
+    // Upload Sertifikat Baru (PDF)
+    if (!empty($_FILES['sertifikat']['name'])) {
         $uploadDir = 'uploads/sertifikat/';
         $fileName = time() . '-' . basename($_FILES['sertifikat']['name']);
         $filePath = $uploadDir . $fileName;
@@ -159,93 +153,120 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <title>P4M Polibatam</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="" name="keywords">
+    <meta content="" name="description">
+
+    <link href="img/favicon.ico" rel="icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="lib/owlcarousel/assets/owl.carousel.min.css" rel="stylesheet">
+    <link href="lib/tempusdominus/css/tempusdominus-bootstrap-4.min.css" rel="stylesheet" />
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
+
     <style>
-        .table-custom { background-color: white; color: #333; width: 100%; }
-        .table-custom thead th { background-color: #0d83fd; color: white; text-align: center; }
-        .table-custom td, .table-custom th { text-align: center; vertical-align: middle; }
-        .btn-icon { padding: 0; margin: 0; border: none; background: transparent; font-size: 16px; }
-        .btn-icon i { font-size: 18px; }
-        .hidden { display: none; }
-        
-        /* Styling Khusus Pencarian */
-        .search-form-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-        .search-form-wrapper .input-group { width: 300px; }
-        .search-form-wrapper .form-control { border-radius: 20px 0 0 20px; }
-        .search-form-wrapper .btn-cari { border-radius: 0 20px 20px 0; background-color: #0d83fd; color: white; }
+    .logo-image { height: 40px; width: auto; }
+    .table-custom { background-color: white; color: #333; width: 100%; }
+    .table-custom thead th { background-color: #0d83fd; color: white; text-align: center; }
+    .table-custom td, .table-custom th { text-align: center; vertical-align: middle; }
+    .table-custom .btn-icon { padding: 0; margin: 0; border: none; background: transparent; font-size: 16px; }
+    .table-custom .btn-icon i { font-size: 18px; margin: 0; }
+    .table-custom .btn-warning i { color: #ffc107; }
+    .table-custom .btn-danger i { color: #dc3545; }
+    .table-custom .btn-icon:hover { color: #0d83fd; }
+
+    .pagination-custom { display: flex; justify-content: center; align-items: center; list-style: none; padding: 0; margin: 15px 0; gap: 5px; }
+    .pagination-custom .page-item { display: flex; align-items: center; justify-content: center; transition: all 0.2s ease-in-out; }
+    .pagination-custom .page-link { display: flex; align-items: center; justify-content: center; padding: 6px 10px; font-size: 12px; font-weight: 500; color: #0d83fd; background-color: white; border: 1.5px solid #0d83fd; border-radius: 8px; box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.08); transition: all 0.2s ease-in-out; }
+    .pagination-custom .page-item.active .page-link { background-color: #0d83fd; color: white; border-color: #0d83fd; box-shadow: 1px 1px 10px rgba(13, 131, 253, 0.2); }
+    .pagination-custom .page-link:hover { background-color: rgba(13, 131, 253, 0.1); color: #0d83fd; transform: scale(1.05); }
+    .pagination-custom .page-item.disabled .page-link { color: #aaa; border-color: #ddd; background-color: #f8f9fa; cursor: not-allowed; }
+    .pagination-custom .arrow { font-size: 14px; padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+    .search-form-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .search-form-wrapper .input-group { width: 300px; }
+    .search-form-wrapper .form-control { border-radius: 20px 0 0 20px; }
+    .search-form-wrapper .btn-cari { border-radius: 0 20px 20px 0; background-color: #0d83fd; color: white; }
+    .showing-info { font-size: 14px; color: #0d83fd; text-align: center; margin-bottom: 10px; }
+    .btn-tambah { background-color: #0d83fd; color: white; border-radius: 20px; padding: 5px 15px; border: none; }
+    .hidden { display: none; }
     </style>
-    <script>
-        function showQuestions(value, prefix = '') {
-            document.getElementById(prefix + 'id_unit').classList.add('hidden');
-            document.getElementById(prefix + 'nama_jurusan').classList.add('hidden');
-            document.getElementById(prefix + 'id_prodi').classList.add('hidden');
-            document.getElementById(prefix + 'email_kps').classList.add('hidden');
-            if (value == 'Unit Kerja') {
-                document.getElementById(prefix + 'id_unit').classList.remove('hidden');
+
+<script>
+    function showQuestions(value, prefix = '') {
+        document.getElementById(prefix + 'id_unit').classList.add('hidden');
+        document.getElementById(prefix + 'nama_jurusan').classList.add('hidden');
+        document.getElementById(prefix + 'id_prodi').classList.add('hidden');
+        if (value == 'Unit Kerja') {
+            document.getElementById(prefix + 'id_unit').classList.remove('hidden');
+        }
+        if (value == 'Program Studi') {
+            document.getElementById(prefix + 'nama_jurusan').classList.remove('hidden');
+            document.getElementById(prefix + 'id_prodi').classList.remove('hidden');
+        }
+    }
+
+    function filterProdi(jurusan, prefix = '') {
+        var select = document.getElementById(prefix + 'select_prodi');
+        for (var i = 0; i < select.options.length; i++) {
+            var opt = select.options[i];
+            if (opt.value === '0') continue;
+            var cocok = opt.getAttribute('data-jurusan') === jurusan;
+            opt.hidden = !cocok;
+            opt.disabled = !cocok;
+        }
+        select.value = '0';
+    }
+
+    function editData(data) {
+        document.getElementById('edit_id_akreditasi').value = data.id_akreditasi;
+        document.getElementById('edit_tanggal_mulai').value = data.tanggal_mulai;
+        document.getElementById('edit_tanggal_berakhir').value = data.tanggal_berakhir;
+        document.getElementById('edit_peringkat').value = data.peringkat;
+        document.getElementById('edit_id_lembaga').value = data.id_lembaga;
+        document.getElementById('edit_id_jenis').value = data.id_jenis;
+
+        if(data.akreditasi === 'Unit Kerja') {
+            document.getElementById('edit_radio_unit').checked = true;
+            showQuestions('Unit Kerja', 'edit_');
+            document.getElementById('edit_id_unit').value = data.id_unit;
+        } else {
+            document.getElementById('edit_radio_prodi').checked = true;
+            showQuestions('Program Studi', 'edit_');
+            var selJurusan = document.getElementById('edit_nama_jurusan');
+            for(var i=0; i<selJurusan.options.length; i++){
+                if(selJurusan.options[i].value === data.nama_jurusan) selJurusan.selectedIndex = i;
             }
-            if (value == 'Program Studi') {
-                document.getElementById(prefix + 'nama_jurusan').classList.remove('hidden');
-                document.getElementById(prefix + 'id_prodi').classList.remove('hidden');
-                document.getElementById(prefix + 'email_kps').classList.remove('hidden');
+            filterProdi(data.nama_jurusan, 'edit_');
+            var selProdi = document.getElementById('edit_select_prodi');
+            for(var i=0; i<selProdi.options.length; i++){
+                if(selProdi.options[i].value === data.id_prodi.toString()) selProdi.selectedIndex = i;
             }
         }
-        function filterProdi(jurusan, prefix = '') {
-            var select = document.getElementById(prefix + 'select_prodi');
-            for (var i = 0; i < select.options.length; i++) {
-                var opt = select.options[i];
-                if (opt.value === '0') continue;
-                var cocok = opt.getAttribute('data-jurusan') === jurusan;
-                opt.hidden = !cocok;
-                opt.disabled = !cocok;
-            }
-            select.value = '0';
-        }
-        function editData(data) {
-            document.getElementById('edit_id_akreditasi').value = data.id_akreditasi;
-            document.getElementById('edit_tanggal_mulai').value = data.tanggal_mulai;
-            document.getElementById('edit_tanggal_berakhir').value = data.tanggal_berakhir;
-            document.getElementById('edit_peringkat').value = data.peringkat;
-            document.getElementById('edit_id_lembaga').value = data.id_lembaga;
-            document.getElementById('edit_id_jenis').value = data.id_jenis;
-            if (data.akreditasi === 'Unit Kerja') {
-                document.getElementById('edit_radio_unit').checked = true;
-                showQuestions('Unit Kerja', 'edit_');
-                document.getElementById('edit_id_unit').value = data.id_unit;
-            } else {
-                document.getElementById('edit_radio_prodi').checked = true;
-                showQuestions('Program Studi', 'edit_');
-                var selJurusan = document.getElementById('edit_nama_jurusan');
-                for (var i = 0; i < selJurusan.options.length; i++) {
-                    if (selJurusan.options[i].value === data.nama_jurusan) selJurusan.selectedIndex = i;
-                }
-                filterProdi(data.nama_jurusan, 'edit_');
-                var selProdi = document.getElementById('edit_select_prodi');
-                for (var i = 0; i < selProdi.options.length; i++) {
-                    if (selProdi.options[i].value === data.id_prodi.toString()) selProdi.selectedIndex = i;
-                }
-                if (data.sertifikat && data.sertifikat.startsWith('email:')) {
-                    document.getElementById('edit_email_kps').value = data.sertifikat.substring(6);
-                } else {
-                    document.getElementById('edit_email_kps').value = '';
-                }
-            }
-        }
-    </script>
+    }
+</script>
+
 </head>
+
 <body>
     <div class="container-xxl position-relative bg-white d-flex p-0">
+
+        <!-- Sidebar -->
         <div class="sidebar pe-4 pb-3 bg-light">
             <nav class="navbar bg-light navbar-light">
-                <a href="#" class="navbar-brand mx-5 mb-3">
-                    <span style="font-size: 24px; font-weight: bold; color: #4AC4F3;">
-                        <img src="../assets/img/logo/polibatam.svg" alt="" class="logo-image" /> Polibatam
-                    </span>
-                </a>
+            <a href="#" class="navbar-brand mx-5 mb-3">
+                <span style="font-size: 24px; font-weight: bold; color: #4AC4F3;">
+                    <img src="../assets/img/logo/polibatam.svg" alt="" class="logo-image" /> Polibatam
+                </span>
+            </a>
                 <div class="navbar-nav w-100">
                     <a href="dashboard.php" class="nav-item nav-link"><i class="fa fa-home me-2"></i>Dashboard</a>
                     <div class="nav-item dropdown">
@@ -287,20 +308,26 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                 </div>
             </nav>
         </div>
+        <!-- Sidebar -->
+
+        <!-- Content -->
         <div class="content">
+            <!-- Navbar -->
             <nav class="navbar navbar-expand bg-light navbar-light sticky-top px-4 py-2 shadow-sm">
                 <a href="#" class="sidebar-toggler flex-shrink-0"><i class="fa fa-bars"></i></a>
                 <div class="navbar-nav align-items-center ms-auto">
-                    <a href="../index.php" class="btn btn-link text-dark" style="position: absolute; right: 20px;"><i class="fa fa-sign-out-alt"></i></a>
+                <a href="../index.php" class="btn btn-link text-dark" style="position: absolute; right: 20px;"><i class="fa fa-sign-out-alt"></i></a>
                 </div>
             </nav>
+            <!-- Navbar -->
+
+            <!-- Main Content -->
             <div class="container-fluid pt-4 px-4">
                 <h5 class="mb-4 text-primary">Kelola Akreditasi Dan Sertifikasi</h5>
                 <div class="row g-4">
                     <div class="col-12">
                         <div class="bg-light rounded h-100 p-4">
-                            
-                            <!-- FORM PENCARIAN -->
+                            <!-- search bar -->
                             <div class="search-form-wrapper">
                                 <a class="button btn-tambah" href="#" data-bs-toggle="modal" data-bs-target="#modalTambah">Tambah Data</a>
                                 <form action="akreditasi.php" method="get" class="m-0">
@@ -311,6 +338,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 </form>
                             </div>
 
+                            <!-- Table -->
                             <div class="table-responsive">
                                 <table class="table table-hover table-custom">
                                     <thead>
@@ -325,7 +353,6 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                             <th>Tanggal Mulai</th>
                                             <th>Tanggal Berakhir</th>
                                             <th>Sertifikat</th>
-                                            <th>Email KPS</th>
                                             <th>Aksi</th>
                                         </tr>
                                     </thead>
@@ -342,40 +369,29 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                                     <td><?= $row["jenis_akreditasi"] ?></td>
                                                     <td><?= $row["tanggal_mulai"] ?></td>
                                                     <td><?= $row["tanggal_berakhir"] ?></td>
-                                                    <?php 
-                                                        $is_email = (!empty($row['sertifikat']) && strpos($row['sertifikat'], 'email:') === 0);
-                                                        $sertifikat_val = ($is_email) ? '' : $row['sertifikat'];
-                                                        $email_val = ($is_email) ? substr($row['sertifikat'], 6) : '';
-                                                    ?>
                                                     <td>
-                                                        <?php if (!empty($sertifikat_val)): ?>
-                                                            <a href="<?= $sertifikat_val ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> Lihat PDF</a>
+                                                        <?php if (!empty($row['sertifikat']) && strpos($row['sertifikat'], 'email:') !== 0): ?>
+                                                            <a href="<?= $row['sertifikat'] ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> Lihat PDF</a>
                                                         <?php else: ?>
                                                             <span class="text-muted">-</span>
                                                         <?php endif; ?>
                                                     </td>
                                                     <td>
-                                                        <?php if (!empty($email_val)): ?>
-                                                            <span class="text-dark"><?= htmlspecialchars($email_val) ?></span>
-                                                        <?php else: ?>
-                                                            <span class="text-muted">-</span>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td>
-                                                        <!-- TOMBOL EDIT & HAPUS DIPASTIKAN MUNCUL -->
-                                                        <div class="d-flex justify-content-center align-items-center gap-2">
-                                                            <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit" onclick='editData(<?= json_encode($row) ?>)' title="Edit"><i class="fas fa-edit"></i></button>
-                                                            <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?= $row['id_akreditasi'] ?>" title="Hapus"><i class="fas fa-trash-alt"></i></button>                                    
+                                                        <div class="d-flex justify-content-center gap-1">
+                                                            <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit" onclick='editData(<?= json_encode($row) ?>)' title="Edit"><i class="fas fa-edit"></i></button>
+                                                            <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?= $row['id_akreditasi'] ?>" title="Hapus"><i class="fas fa-trash-alt"></i></button>                                    
                                                         </div>
                                                     </td>
                                                 </tr>
                                             <?php endforeach; ?>
                                         <?php else: ?>
-                                            <tr><td colspan="12">Tidak ada data yang tersedia.</td></tr>
+                                            <tr><td colspan="11">Tidak ada data yang tersedia.</td></tr>
                                         <?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            <!-- Pagination -->
                             <div class="showing-info text-center mb-3">
                                 Menampilkan <?php echo ($totalData > 0) ? $start + 1 : 0; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
                             </div>
@@ -398,7 +414,8 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                     </div>
                 </div>
             </div>
-            
+            <!-- End Main Content -->
+
             <!-- Modal Tambah Data -->
             <div class="modal fade" id="modalTambah" tabindex="-1" aria-labelledby="modalTambahLabel" aria-hidden="true">
                 <div class="modal-dialog">
@@ -441,11 +458,6 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                         <?php $ambil = mysqli_query($koneksi, "SELECT * FROM program_studi ORDER BY nama_program_studi"); while ($data = mysqli_fetch_assoc($ambil)) { $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="' . $data['id_prodi'] . '" data-jurusan="' . $jur . '" hidden disabled>' . $data['nama_program_studi'] . '</option>'; } ?>
                                     </select>
                                 </div>
-                                <div class="mb-3 hidden" id="email_kps">
-                                    <label for="email_kps" class="form-label">Email KPS Jurusan (Otomatis berlaku untuk semua prodi di jurusan ini)</label>
-                                    <input type="email" class="form-control" name="email_kps" placeholder="xxxx@polibatam.ac.id">
-                                    <small class="text-muted">*Kosongkan jika hanya ingin mengunggah sertifikat PDF.</small>
-                                </div>
                                 <div class="mb-3">
                                     <label for="peringkat" class="form-label">Predikat</label>
                                     <select class="form-select" name="peringkat" id="peringkat" required>
@@ -469,7 +481,6 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                     <select class="form-select" name="id_jenis">
                                         <option value="0" selected disabled>-- Pilih Jenis Akreditasi --</option>
                                         <?php 
-                                            // HANYA MENAMPILKAN NASIONAL & INTERNASIONAL
                                             $ambil = mysqli_query($koneksi, "SELECT * FROM jenis_akreditasi WHERE jenis_akreditasi IN ('Nasional', 'Internasional')"); 
                                             while ($data = mysqli_fetch_assoc($ambil)) { 
                                                 echo '<option value="' . $data['id_jenis'] . '">' . $data['jenis_akreditasi'] . '</option>'; 
@@ -488,7 +499,6 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 <div class="mb-3">
                                     <label for="sertifikat" class="form-label">Upload Sertifikat (PDF)</label>
                                     <input type="file" class="form-control" id="sertifikat" name="sertifikat" accept=".pdf">
-                                    <small class="text-muted">*Kosongkan jika hanya ingin mengisi Email KPS di atas.</small>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -542,11 +552,6 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                         <?php $ambil = mysqli_query($koneksi, "SELECT * FROM program_studi ORDER BY nama_program_studi"); while ($data = mysqli_fetch_assoc($ambil)) { $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="' . $data['id_prodi'] . '" data-jurusan="' . $jur . '" hidden disabled>' . $data['nama_program_studi'] . '</option>'; } ?>
                                     </select>
                                 </div>
-                                <div class="mb-3 hidden" id="edit_email_kps">
-                                    <label for="edit_email_kps" class="form-label">Email KPS Jurusan (Otomatis berlaku untuk semua prodi di jurusan ini)</label>
-                                    <input type="email" class="form-control" name="email_kps" id="edit_email_kps" placeholder="xxxx@polibatam.ac.id">
-                                    <small class="text-muted">*Kosongkan jika tidak ingin mengubah Email KPS.</small>
-                                </div>
                                 <div class="mb-3">
                                     <label for="edit_peringkat" class="form-label">Predikat</label>
                                     <select class="form-select" name="peringkat" id="edit_peringkat" required>
@@ -567,7 +572,6 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                     <label for="edit_id_jenis" class="form-label">Jenis Akreditasi</label>
                                     <select class="form-select" name="id_jenis" id="edit_id_jenis">
                                         <?php 
-                                            // HANYA MENAMPILKAN NASIONAL & INTERNASIONAL
                                             $ambil = mysqli_query($koneksi, "SELECT * FROM jenis_akreditasi WHERE jenis_akreditasi IN ('Nasional', 'Internasional')"); 
                                             while ($data = mysqli_fetch_assoc($ambil)) { 
                                                 echo '<option value="' . $data['id_jenis'] . '">' . $data['jenis_akreditasi'] . '</option>'; 
@@ -586,7 +590,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 <div class="mb-3">
                                     <label for="sertifikat" class="form-label">Upload Sertifikat Baru (PDF)</label>
                                     <input type="file" class="form-control" id="sertifikat" name="sertifikat" accept=".pdf">
-                                    <small class="text-muted">*Kosongkan jika tidak ingin mengubah Sertifikat / Email KPS.</small>
+                                    <small class="text-muted">*Kosongkan jika tidak ingin mengubah Sertifikat.</small>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -618,7 +622,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                     </div>
                 </div>
             <?php endforeach; ?>
-            
+
             <!-- Footer -->
             <div class="container-fluid pt-4 px-4">
                 <div class="bg-light rounded-top p-4">
@@ -629,7 +633,12 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                     </div>
                 </div>
             </div>
+            <!-- Footer -->
+
         </div>
+        <!-- Content -->
+
+        <!-- Back to Top -->
         <a href="#" class="btn btn-lg btn-primary btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
@@ -643,6 +652,9 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
     <script src="lib/tempusdominus/js/moment.min.js"></script>
     <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
     <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
+
+    <!-- Template Javascript -->
     <script src="js/main.js"></script>
 </body>
+
 </html>

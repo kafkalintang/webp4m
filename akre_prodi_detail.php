@@ -9,7 +9,7 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
 
 $id_prodi = mysqli_real_escape_string($koneksi, $_GET['id']);
 
-// 2. Ambil Data Identitas Prodi (Jurusan, Nama Prodi)
+// 2. Ambil Data Identitas Prodi (Termasuk Email KPS)
 $query_prodi = "SELECT * FROM program_studi WHERE id_prodi = '$id_prodi'";
 $result_prodi = mysqli_query($koneksi, $query_prodi);
 $data_prodi = mysqli_fetch_assoc($result_prodi);
@@ -32,14 +32,26 @@ $result_riwayat = mysqli_query($koneksi, $query_riwayat);
 
 $hari_ini = date('Y-m-d');
 
-// Ambil email KPS dari riwayat terbaru (jika ada)
-$email_kps_tampil = '';
+// AMBIL EMAIL KPS DARI TABEL PROGRAM STUDI
+$email_kps_tampil = !empty($data_prodi['email_kps']) ? $data_prodi['email_kps'] : 'Belum diatur oleh Admin';
+
+// Variabel default untuk info atas
+$tipe_akreditasi_tampil = 'Nasional';
+$lembaga_terbaru = 'BAN-PT / LAM';
+
 if (mysqli_num_rows($result_riwayat) > 0) {
     $riwayat_terbaru = mysqli_fetch_assoc($result_riwayat);
-    if (strpos($riwayat_terbaru['sertifikat'], 'email:') === 0) {
-        $email_kps_tampil = substr($riwayat_terbaru['sertifikat'], 6);
+    
+    // Ambil Tipe Akreditasi
+    if(isset($riwayat_terbaru['jenis_akreditasi'])){
+        $tipe_akreditasi_tampil = $riwayat_terbaru['jenis_akreditasi'];
     }
-    // Kembalikan pointer data ke awal agar tetap bisa dilooping di tabel
+    
+    // Ambil Nama Lembaga Terbaru
+    if(!empty($riwayat_terbaru['nama_lembaga'])){
+        $lembaga_terbaru = $riwayat_terbaru['nama_lembaga'];
+    }
+    
     mysqli_data_seek($result_riwayat, 0); 
 }
 ?>
@@ -152,10 +164,11 @@ if (mysqli_num_rows($result_riwayat) > 0) {
             <div class="detail-head">
               <div>
                 <span class="badge-custom">Jurusan <?= htmlspecialchars($data_prodi['nama_jurusan']) ?></span>
-                <span class="badge-custom">Nasional</span>
+                <span class="badge-custom"><?= htmlspecialchars($tipe_akreditasi_tampil) ?></span>
               </div>
               <h2><?= htmlspecialchars($data_prodi['nama_program_studi']) ?></h2>
-              <p>Lembaga Pengakreditasi: <b>BAN-PT / LAM</b></p>
+              <!-- LEMBAGA DIUBAH JADI KAPITAL SEMUA PAKAI strtoupper() -->
+              <p>Lembaga Pengakreditasi: <b><?= strtoupper(htmlspecialchars($lembaga_terbaru)) ?></b></p>
             </div>
           </div>
 
@@ -165,14 +178,7 @@ if (mysqli_num_rows($result_riwayat) > 0) {
               <div>
                 <div class="label">Email KPS / Kaprodi (Reminder Feature)</div>
                 <div class="mail">
-                  <?php 
-                    // Tampilkan email dari admin jika ada, jika tidak pakai tebakan otomatis
-                    if ($email_kps_tampil != '') {
-                        echo htmlspecialchars($email_kps_tampil);
-                    } else {
-                        echo 'kps_' . strtolower(str_replace(' ', '', substr($data_prodi['nama_program_studi'], 0, 3))) . '@polibatam.ac.id';
-                    }
-                  ?>
+                  <?= htmlspecialchars($email_kps_tampil) ?>
                 </div>
                 <div class="note"><i class="bi bi-check-circle-fill me-1"></i> Notif email otomatis H-1 tahun aktif</div>
               </div>
@@ -212,16 +218,10 @@ if (mysqli_num_rows($result_riwayat) > 0) {
                     <td><span class="fw-medium"><?= htmlspecialchars($riwayat['peringkat']) ?></span></td>
                     <td><?= htmlspecialchars($riwayat['nama_lembaga'] ?? '-') ?></td>
                     <td class="text-center">
-                      <?php if (!empty($riwayat['sertifikat'])): ?>
-                          <?php if (strpos($riwayat['sertifikat'], 'email:') === 0): ?>
-                              <!-- Jika yang tersimpan adalah email, jangan tampilkan tombol PDF -->
-                              <span class="text-muted small fst-italic">Tidak ada file</span>
-                          <?php else: ?>
-                              <!-- Jika yang tersimpan adalah file pdf -->
-                              <a href="admin/<?= htmlspecialchars($riwayat['sertifikat']) ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                  <i class="bi bi-file-earmark-text-fill me-1"></i> Lihat Sertifikat
-                              </a>
-                          <?php endif; ?>
+                      <?php if (!empty($riwayat['sertifikat']) && strpos($riwayat['sertifikat'], 'email:') !== 0): ?>
+                          <a href="admin/<?= htmlspecialchars($riwayat['sertifikat']) ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                              <i class="bi bi-file-earmark-text-fill me-1"></i> Lihat Sertifikat
+                          </a>
                       <?php else: ?>
                         <span class="text-muted small fst-italic">Belum ada file</span>
                       <?php endif; ?>
