@@ -89,7 +89,30 @@ if (mysqli_num_rows($result_riwayat) > 0) {
     .btn-back:hover { background: #0d83fd; color: #fff; border-color: #0d83fd; transform: translateY(-2px); }
     .content-card { background: #fff; border-radius: 16px; box-shadow: 0 6px 25px rgba(13, 131, 253, 0.05); border: 1px solid rgba(13, 131, 253, 0.1); padding: 30px; margin-bottom: 24px; }
     .detail-head { border-left: 5px solid #0d83fd; padding-left: 20px; }
-    .badge-custom { font-size: 13px; padding: 6px 14px; border-radius: 8px; background: #e6f2ff; color: #0a6fd8; font-weight: 600; margin-bottom: 10px; display: inline-block; margin-right: 5px; }
+    
+    /* CSS BADGE DISAMAKAN DENGAN EFEK KOTAK KPS */
+    .badge-custom { 
+      font-size: 13px; 
+      padding: 6px 14px; 
+      border-radius: 8px; 
+      background: #e6f2ff; 
+      color: #0a6fd8; 
+      font-weight: 600; 
+      margin-bottom: 10px; 
+      display: inline-block; 
+      margin-right: 5px;
+      border: 1px solid transparent; /* Tambahan agar sama dengan kps-box yang punya border */
+      transition: 0.3s; /* Sama persis dengan kps-box */
+      cursor: default;
+    }
+
+    /* Efek saat disentuh (Hover) - Persis seperti kps-box */
+    .badge-custom:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 15px rgba(13, 131, 253, 0.08);
+    }
+    /* AKHIR CSS BADGE */
+
     .detail-head h2 { font-size: 32px; font-weight: 800; color: #1e2b4c; margin-bottom: 8px; }
     .detail-head p { color: #6c757d; font-size: 15px; margin: 0; }
     .kps-box { background: #f4f8fe; border-radius: 12px; padding: 20px; border: 1px solid #d0e3fa; display: flex; align-items: flex-start; gap: 15px; transition: 0.3s; }
