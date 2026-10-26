@@ -611,9 +611,50 @@
 
           <div class="col-lg-7">
             <div class="contact-form" data-aos="fade-up" data-aos-delay="400">
-            <div class="rounded-4 overflow-hidden" style="width: 100%; height: 500px;"> <!-- Ubah tinggi menjadi lebih besar -->
+            <div class="rounded-4 overflow-hidden mb-4" style="width: 100%; height: 350px;"> <!-- Ubah tinggi menjadi lebih kecil -->
             <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.0578062716795!2d104.04588167485429!3d1.1187204988705566!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31d98921856ddfab%3A0xf9d9fc65ca00c9d!2sPoliteknik%20Negeri%20Batam!5e0!3m2!1sid!2sid!4v1707785475625!5m2!1sid!2sid" width="100%" height="100%" frameborder="0" style="border:0;" allowfullscreen="" aria-hidden="false" tabindex="0"></iframe>
           </div>
+
+          <!-- FORM KONTAK DITAMBAHKAN DISINI -->
+          <form action="forms/contact.php" method="post" role="form" class="php-email-form">
+            <div class="row">
+              <div class="col-md-6 form-group">
+                <input type="text" name="name" class="form-control" id="name" placeholder="Nama Anda" required>
+              </div>
+              <div class="col-md-6 form-group mt-3 mt-md-0">
+                <input type="email" class="form-control" name="email" id="email" placeholder="Email Anda" required>
+              </div>
+            </div>
+            
+            <!-- DROPDOWN PROGRAM STUDI DITAMBAHKAN -->
+            <div class="form-group mt-3">
+              <select class="form-select" name="id_prodi" required>
+                <option value="" selected disabled>-- Pilih Program Studi Tujuan --</option>
+                <?php
+                include 'koneksi.php';
+                $q_prodi = mysqli_query($koneksi, "SELECT id_prodi, nama_program_studi FROM program_studi ORDER BY nama_program_studi ASC");
+                while($p = mysqli_fetch_assoc($q_prodi)) {
+                  echo '<option value="'.$p['id_prodi'].'">'.$p['nama_program_studi'].'</option>';
+                }
+                ?>
+              </select>
+            </div>
+
+            <div class="form-group mt-3">
+              <input type="text" class="form-control" name="subject" id="subject" placeholder="Subjek" required>
+            </div>
+            <div class="form-group mt-3">
+              <textarea class="form-control" name="message" rows="5" placeholder="Pesan" required></textarea>
+            </div>
+            
+            <div class="my-3">
+              <div class="loading">Loading</div>
+              <div class="error-message"></div>
+              <div class="sent-message">Pesan Anda telah terkirim. Terima kasih!</div>
+            </div>
+            
+            <div class="text-center"><button type="submit">Kirim Pesan</button></div>
+          </form>
 
         </div>
 
@@ -701,6 +742,56 @@
   <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
   <script src="assets/vendor/purecounter/purecounter_vanilla.js"></script>
   <script src="assets/js/main.js"></script>
+
+  <!-- Pastikan di atas file sudah ada: <?php include 'koneksi.php'; ?> -->
+
+<form action="forms/contact.php" method="post" role="form" class="php-email-form">
+  <div class="row">
+    <!-- Input Nama -->
+    <div class="col-md-6 form-group">
+      <input type="text" name="name" class="form-control" id="name" placeholder="Nama Lengkap" required>
+    </div>
+    
+    <!-- Input Email -->
+    <div class="col-md-6 form-group mt-3 mt-md-0">
+      <input type="email" class="form-control" name="email" id="email" placeholder="Email Anda" required>
+    </div>
+  </div>
+
+  <!-- Input Subjek -->
+  <div class="form-group mt-3">
+    <input type="text" class="form-control" name="subject" id="subject" placeholder="Subjek Pesan" required>
+  </div>
+
+  <!-- Dropdown Program Studi (DINAMIS DARI DATABASE) -->
+  <div class="form-group mt-3">
+    <select name="id_prodi" class="form-control" required>
+      <option value="" disabled selected>-- Pilih Program Studi Tujuan --</option>
+      <?php
+      // Ambil data prodi dari database
+      $query_dropdown = mysqli_query($koneksi, "SELECT id_prodi, nama_program_studi FROM program_studi ORDER BY nama_program_studi ASC");
+      
+      // Looping buat nampilin pilihan
+      while ($prodi = mysqli_fetch_assoc($query_dropdown)) {
+          echo '<option value="' . $prodi['id_prodi'] . '">' . htmlspecialchars($prodi['nama_program_studi']) . '</option>';
+      }
+      ?>
+    </select>
+  </div>
+
+  <!-- Input Pesan -->
+  <div class="form-group mt-3">
+    <textarea class="form-control" name="message" rows="5" placeholder="Pesan Anda" required></textarea>
+  </div>
+
+  <div class="my-3">
+    <div class="loading">Loading</div>
+    <div class="error-message"></div>
+    <div class="sent-message">Pesan Anda telah berhasil dikirim. Terima kasih!</div>
+  </div>
+
+  <div class="text-center"><button type="submit" title="Kirim Pesan">Kirim Pesan</button></div>
+</form>
 
 </body>
 
