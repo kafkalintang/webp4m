@@ -133,7 +133,7 @@ if (isset($_POST["submit"])) {
 }
 
 // =========================================================================
-// PROSES EDIT DATA
+// PROSES EDIT DATA (DENGAN RIWAYAT)
 // =========================================================================
 if (isset($_POST["update"])) {
     $id_akreditasi = $_POST["id_akreditasi"];
@@ -176,6 +176,24 @@ if (isset($_POST["update"])) {
     $tanggal_berakhir = $_POST["tanggal_berakhir"];
     $sertifikat_sql = "";
 
+    // Ambil data lama
+    $q_lama = mysqli_query($koneksi, "SELECT tanggal_mulai, tanggal_berakhir, sertifikat FROM akreditasi WHERE id_akreditasi='$id_akreditasi'");
+    $d_lama = mysqli_fetch_assoc($q_lama);
+    
+    // Parsing tanggal lama (jika ada separator '|')
+    $tgl_mulai_arr = explode('|', $d_lama['tanggal_mulai']);
+    $tgl_berakhir_arr = explode('|', $d_lama['tanggal_berakhir']);
+    $sertifikat_arr = !empty($d_lama['sertifikat']) ? explode(',', $d_lama['sertifikat']) : [];
+
+    // Cek jika tanggal yang diinput berbeda dari yang terakhir
+    $last_tgl_mulai = end($tgl_mulai_arr);
+    $last_tgl_berakhir = end($tgl_berakhir_arr);
+    
+    if ($tanggal_mulai !== $last_tgl_mulai || $tanggal_berakhir !== $last_tgl_berakhir) {
+        $tanggal_mulai = $d_lama['tanggal_mulai'] . '|' . $tanggal_mulai;
+        $tanggal_berakhir = $d_lama['tanggal_berakhir'] . '|' . $tanggal_berakhir;
+    }
+
     // Upload Sertifikat Baru (PDF)
     if (!empty($_FILES['sertifikat']['name'])) {
         $uploadDir = 'uploads/sertifikat/';
@@ -187,7 +205,10 @@ if (isset($_POST["update"])) {
         $fileType = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         if ($fileType == 'pdf') {
             if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
-                $sertifikat_sql = ", sertifikat='" . $filePath . "'";
+                // Gabungkan sertifikat lama dengan baru
+                $sertifikat_arr[] = $filePath;
+                $sertifikat_gabung = implode(',', $sertifikat_arr);
+                $sertifikat_sql = ", sertifikat='$sertifikat_gabung'";
             }
         }
     }
@@ -223,7 +244,7 @@ if (isset($_POST["delete"])) {
 // =========================================================================
 // AMBIL DATA UNTUK DITAMPILKAN
 // =========================================================================
-$akreditasi = query("SELECT
+$akreditasi_raw = query("SELECT
     akreditasi.id_akreditasi,
     akreditasi.akreditasi,
     akreditasi.id_unit,                
@@ -243,7 +264,8 @@ FROM akreditasi
 LEFT JOIN unit ON unit.id_unit = akreditasi.id_unit
 LEFT JOIN program_studi AS ps_prodi ON ps_prodi.id_prodi = akreditasi.id_prodi
 LEFT JOIN lembaga AS ps_lembaga ON ps_lembaga.id_lembaga = akreditasi.id_lembaga
-LEFT JOIN jenis_akreditasi AS ps_jenis_akreditasi ON ps_jenis_akreditasi.id_jenis = akreditasi.id_jenis");
+LEFT JOIN jenis_akreditasi AS ps_jenis_akreditasi ON ps_jenis_akreditasi.id_jenis = akreditasi.id_jenis
+ORDER BY akreditasi.id_akreditasi DESC");
 
 $limit = 10;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -251,7 +273,7 @@ $start = ($page > 1) ? ($page * $limit) - $limit : 0;
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 
 if ($search !== '') {
-    $akreditasi = array_filter($akreditasi, function ($item) use ($search) {
+    $akreditasi_raw = array_filter($akreditasi_raw, function ($item) use ($search) {
         return stripos((string)$item['nama_unit_kerja'], $search) !== false
             || stripos((string)$item['nama_jurusan'], $search) !== false
             || stripos((string)$item['nama_program_studi'], $search) !== false
@@ -259,9 +281,74 @@ if ($search !== '') {
     });
 }
 
-$totalData = count($akreditasi);
+$totalData = count($akreditasi_raw);
 $totalPages = ceil($totalData / $limit);
-$akreditasi = array_slice($akreditasi, $start, $limit);
+$akreditasi_paged = array_slice($akreditasi_raw, $start, $limit);
+
+// =========================================================================
+// LOGIKA GROUPING (UNIT KERJA & PRODI)
+// =========================================================================
+$grouped_data_unit = [];
+$grouped_data_prodi = [];
+
+foreach ($akreditasi_paged as $row) {
+    if ($row['akreditasi'] == 'Unit Kerja') {
+        // Kunci Unik untuk Unit Kerja
+        $key = 'Unit_' . $row['id_unit'] . '_' . $row['peringkat'] . '_' . $row['id_lembaga'] . '_' . $row['id_jenis'];
+        
+        if (!isset($grouped_data_unit[$key])) {
+            $grouped_data_unit[$key] = [
+                'nama_unit_kerja' => $row['nama_unit_kerja'],
+                'peringkat' => $row['peringkat'],
+                'nama_lembaga' => $row['nama_lembaga'],
+                'jenis_akreditasi' => $row['jenis_akreditasi'],
+                'details' => []
+            ];
+        }
+        
+        // Pecah tanggal dan sertifikat
+        $tgl_mulai_arr = explode('|', $row['tanggal_mulai']);
+        $tgl_berakhir_arr = explode('|', $row['tanggal_berakhir']);
+        $sertifikat_arr = !empty($row['sertifikat']) ? explode(',', $row['sertifikat']) : [];
+
+        $grouped_data_unit[$key]['details'][] = [
+            'id_akreditasi' => $row['id_akreditasi'],
+            'tanggal_mulai' => $row['tanggal_mulai'],
+            'tanggal_berakhir' => $row['tanggal_berakhir'],
+            'tgl_mulai_arr' => $tgl_mulai_arr,
+            'tgl_berakhir_arr' => $tgl_berakhir_arr,
+            'sertifikats' => $sertifikat_arr
+        ];
+    } else {
+        // Kunci Unik untuk Prodi
+        $key = 'Prodi_' . $row['id_prodi'] . '_' . $row['peringkat'] . '_' . $row['id_lembaga'] . '_' . $row['id_jenis'];
+        
+        if (!isset($grouped_data_prodi[$key])) {
+            $grouped_data_prodi[$key] = [
+                'nama_jurusan' => $row['nama_jurusan'],
+                'nama_program_studi' => $row['nama_program_studi'],
+                'peringkat' => $row['peringkat'],
+                'nama_lembaga' => $row['nama_lembaga'],
+                'jenis_akreditasi' => $row['jenis_akreditasi'],
+                'details' => []
+            ];
+        }
+
+        // Pecah tanggal dan sertifikat
+        $tgl_mulai_arr = explode('|', $row['tanggal_mulai']);
+        $tgl_berakhir_arr = explode('|', $row['tanggal_berakhir']);
+        $sertifikat_arr = !empty($row['sertifikat']) ? explode(',', $row['sertifikat']) : [];
+
+        $grouped_data_prodi[$key]['details'][] = [
+            'id_akreditasi' => $row['id_akreditasi'],
+            'tanggal_mulai' => $row['tanggal_mulai'],
+            'tanggal_berakhir' => $row['tanggal_berakhir'],
+            'tgl_mulai_arr' => $tgl_mulai_arr,
+            'tgl_berakhir_arr' => $tgl_berakhir_arr,
+            'sertifikats' => $sertifikat_arr
+        ];
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -287,7 +374,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
 
     <style>
     .logo-image { height: 40px; width: auto; }
-    .table-custom { background-color: white; color: #333; width: 100%; }
+    .table-custom { background-color: white; color: #333; width: 100%; margin-bottom: 30px; }
     .table-custom thead th { background-color: #0d83fd; color: white; text-align: center; }
     .table-custom td, .table-custom th { text-align: center; vertical-align: middle; }
     .table-custom .btn-icon { padding: 0; margin: 0; border: none; background: transparent; font-size: 16px; }
@@ -295,6 +382,16 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
     .table-custom .btn-warning i { color: #ffc107; }
     .table-custom .btn-danger i { color: #dc3545; }
     .table-custom .btn-icon:hover { color: #0d83fd; }
+
+    /* Styling untuk Tabel Grouping */
+    .table-custom tbody tr.group-row td { border-bottom: 1px solid #dee2e6; }
+    .table-custom tbody tr.detail-row td { border-bottom: none; padding: 8px 10px; font-size: 14px; }
+    .table-custom tbody tr.detail-row:last-child td { border-bottom: 1px solid #dee2e6; }
+    .table-custom tbody tr.detail-row:hover { background-color: #f8f9fa; }
+    
+    .file-link { display: block; text-align: left; margin-bottom: 3px; color: #0d83fd; text-decoration: none; font-size: 13px; }
+    .file-link:hover { text-decoration: underline; }
+    .file-link i { color: #dc3545; margin-right: 5px; }
 
     .pagination-custom { display: flex; justify-content: center; align-items: center; list-style: none; padding: 0; margin: 15px 0; gap: 5px; }
     .pagination-custom .page-item { display: flex; align-items: center; justify-content: center; transition: all 0.2s ease-in-out; }
@@ -311,6 +408,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
     .showing-info { font-size: 14px; color: #0d83fd; text-align: center; margin-bottom: 10px; }
     .btn-tambah { background-color: #0d83fd; color: white; border-radius: 20px; padding: 5px 15px; border: none; }
     .hidden { display: none !important; }
+    .section-title { font-size: 18px; font-weight: bold; color: #0d83fd; margin-bottom: 15px; margin-top: 10px; }
     </style>
 
 <script>
@@ -361,8 +459,13 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
         });
 
         document.getElementById('edit_id_akreditasi').value = data.id_akreditasi;
-        document.getElementById('edit_tanggal_mulai').value = data.tanggal_mulai;
-        document.getElementById('edit_tanggal_berakhir').value = data.tanggal_berakhir;
+        
+        // Ambil tanggal terakhir (jika ada history)
+        var tglMulaiArr = data.tanggal_mulai.split('|');
+        var tglBerakhirArr = data.tanggal_berakhir.split('|');
+        document.getElementById('edit_tanggal_mulai').value = tglMulaiArr[tglMulaiArr.length - 1];
+        document.getElementById('edit_tanggal_berakhir').value = tglBerakhirArr[tglBerakhirArr.length - 1];
+
         document.getElementById('edit_peringkat').value = data.peringkat;
         document.getElementById('edit_id_lembaga').value = data.id_lembaga;
         document.getElementById('edit_id_jenis').value = data.id_jenis;
@@ -471,13 +574,86 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 </form>
                             </div>
 
-                            <!-- Table -->
+                            <!-- ============================================== -->
+                            <!-- TABEL 1: UNIT KERJA -->
+                            <!-- ============================================== -->
+                            <div class="section-title"><i class="fas fa-building me-2"></i> Akreditasi Unit Kerja</div>
                             <div class="table-responsive">
                                 <table class="table table-hover table-custom">
                                     <thead>
                                         <tr>
-                                            <th>No</th>
+                                            <th width="5%">No</th>
                                             <th>Unit Kerja</th>
+                                            <th>Predikat</th>
+                                            <th>Lembaga</th>
+                                            <th>Jenis Akreditasi</th>
+                                            <th>Tanggal Mulai</th>
+                                            <th>Tanggal Berakhir</th>
+                                            <th>Sertifikat</th>
+                                            <th width="10%">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (!empty($grouped_data_unit)): ?>
+                                            <?php $no = 1; ?>
+                                            <?php foreach ($grouped_data_unit as $group): ?>
+                                                <?php $rowspan = count($group['details']); ?>
+                                                <?php foreach ($group['details'] as $index => $detail): ?>
+                                                <tr class="<?php echo ($index == 0) ? 'group-row' : 'detail-row'; ?>">
+                                                    
+                                                    <?php if ($index == 0): ?>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo $no++; ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?= !empty($group['nama_unit_kerja']) ? $group['nama_unit_kerja'] : "-" ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["peringkat"]; ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo strtoupper($group["nama_lembaga"]); ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["jenis_akreditasi"]; ?></td>
+                                                    <?php endif; ?>
+                                                    
+                                                    <!-- Kolom Tanggal & Sertifikat (Riwayat) -->
+                                                    <td>
+                                                        <?php foreach ($detail['tgl_mulai_arr'] as $tgl) echo "<div>" . trim($tgl) . "</div>"; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php foreach ($detail['tgl_berakhir_arr'] as $tgl) echo "<div>" . trim($tgl) . "</div>"; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php if (!empty($detail['sertifikats'])): ?>
+                                                            <?php foreach ($detail['sertifikats'] as $pdf): ?>
+                                                                <a href="<?php echo trim($pdf); ?>" target="_blank" class="file-link">
+                                                                    <i class="fas fa-file-pdf"></i> <?php echo basename(trim($pdf)); ?>
+                                                                </a>
+                                                            <?php endforeach; ?>
+                                                        <?php else: ?>
+                                                            <span class="text-muted">-</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    
+                                                    <!-- Kolom Aksi -->
+                                                    <td>
+                                                        <div class="d-flex justify-content-center gap-1">
+                                                            <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit" onclick='editData(<?php echo json_encode($detail) ?>)' title="Edit / Perpanjang"><i class="fas fa-edit"></i></button>
+                                                            <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?php echo $detail['id_akreditasi']; ?>" title="Hapus"><i class="fas fa-trash-alt"></i></button>                                    
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <?php endforeach; ?>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <tr><td colspan="9" class="text-center">Tidak ada data akreditasi unit kerja.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- ============================================== -->
+                            <!-- TABEL 2: PROGRAM STUDI -->
+                            <!-- ============================================== -->
+                            <div class="section-title mt-5"><i class="fas fa-graduation-cap me-2"></i> Akreditasi Program Studi</div>
+                            <div class="table-responsive">
+                                <table class="table table-hover table-custom">
+                                    <thead>
+                                        <tr>
+                                            <th width="5%">No</th>
                                             <th>Jurusan</th>
                                             <th>Program Studi</th>
                                             <th>Predikat</th>
@@ -486,44 +662,62 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                             <th>Tanggal Mulai</th>
                                             <th>Tanggal Berakhir</th>
                                             <th>Sertifikat</th>
-                                            <th>Aksi</th>
+                                            <th width="10%">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($akreditasi)): ?>
-                                            <?php $id = 1; foreach ($akreditasi as $row): ?>
-                                                <tr>
-                                                    <td><?= $id++ ?></td>
-                                                    <td><?= !empty($row['nama_unit_kerja']) ? $row['nama_unit_kerja'] : "-" ?></td>
-                                                    <td><?= !empty($row['nama_jurusan']) ? $row['nama_jurusan'] : "-" ?></td>
-                                                    <td><?= !empty($row['nama_program_studi']) ? $row['nama_program_studi'] : "-" ?></td>
-                                                    <td><?= $row["peringkat"] ?></td>
-                                                    <td><?= strtoupper($row["nama_lembaga"]) ?></td>
-                                                    <td><?= $row["jenis_akreditasi"] ?></td>
-                                                    <td><?= $row["tanggal_mulai"] ?></td>
-                                                    <td><?= $row["tanggal_berakhir"] ?></td>
+                                        <?php if (!empty($grouped_data_prodi)): ?>
+                                            <?php $no = 1; ?>
+                                            <?php foreach ($grouped_data_prodi as $group): ?>
+                                                <?php $rowspan = count($group['details']); ?>
+                                                <?php foreach ($group['details'] as $index => $detail): ?>
+                                                <tr class="<?php echo ($index == 0) ? 'group-row' : 'detail-row'; ?>">
+                                                    
+                                                    <?php if ($index == 0): ?>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo $no++; ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?= !empty($group['nama_jurusan']) ? $group['nama_jurusan'] : "-" ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?= !empty($group['nama_program_studi']) ? $group['nama_program_studi'] : "-" ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["peringkat"]; ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo strtoupper($group["nama_lembaga"]); ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["jenis_akreditasi"]; ?></td>
+                                                    <?php endif; ?>
+                                                    
+                                                    <!-- Kolom Tanggal & Sertifikat (Riwayat) -->
                                                     <td>
-                                                        <?php if (!empty($row['sertifikat']) && strpos($row['sertifikat'], 'email:') !== 0): ?>
-                                                            <a href="<?= $row['sertifikat'] ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> Lihat PDF</a>
+                                                        <?php foreach ($detail['tgl_mulai_arr'] as $tgl) echo "<div>" . trim($tgl) . "</div>"; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php foreach ($detail['tgl_berakhir_arr'] as $tgl) echo "<div>" . trim($tgl) . "</div>"; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php if (!empty($detail['sertifikats'])): ?>
+                                                            <?php foreach ($detail['sertifikats'] as $pdf): ?>
+                                                                <a href="<?php echo trim($pdf); ?>" target="_blank" class="file-link">
+                                                                    <i class="fas fa-file-pdf"></i> <?php echo basename(trim($pdf)); ?>
+                                                                </a>
+                                                            <?php endforeach; ?>
                                                         <?php else: ?>
                                                             <span class="text-muted">-</span>
                                                         <?php endif; ?>
                                                     </td>
+                                                    
+                                                    <!-- Kolom Aksi -->
                                                     <td>
                                                         <div class="d-flex justify-content-center gap-1">
-                                                            <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit" onclick='editData(<?= json_encode($row) ?>)' title="Edit"><i class="fas fa-edit"></i></button>
-                                                            <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?= $row['id_akreditasi'] ?>" title="Hapus"><i class="fas fa-trash-alt"></i></button>                                    
+                                                            <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit" onclick='editData(<?php echo json_encode($detail) ?>)' title="Edit / Perpanjang"><i class="fas fa-edit"></i></button>
+                                                            <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?php echo $detail['id_akreditasi']; ?>" title="Hapus"><i class="fas fa-trash-alt"></i></button>                                    
                                                         </div>
                                                     </td>
                                                 </tr>
+                                                <?php endforeach; ?>
                                             <?php endforeach; ?>
                                         <?php else: ?>
-                                            <tr><td colspan="11">Tidak ada data yang tersedia.</td></tr>
+                                            <tr><td colspan="10" class="text-center">Tidak ada data akreditasi program studi.</td></tr>
                                         <?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
-                            
+
                             <!-- Pagination -->
                             <div class="showing-info text-center mb-3">
                                 Menampilkan <?php echo ($totalData > 0) ? $start + 1 : 0; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
@@ -743,7 +937,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 <div class="mb-3">
                                     <label for="sertifikat" class="form-label">Upload Sertifikat Baru (PDF)</label>
                                     <input type="file" class="form-control" id="sertifikat" name="sertifikat" accept=".pdf">
-                                    <small class="text-muted">*Kosongkan jika tidak ingin mengubah Sertifikat.</small>
+                                    <small class="text-muted text-danger">*Unggah file baru untuk menambahkan riwayat. Kosongkan jika tidak ada.</small>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -754,7 +948,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                 </div>
             </div>
 
-            <?php foreach ($akreditasi as $row): ?>
+            <?php foreach ($akreditasi_raw as $row): ?>
                 <div class="modal fade" id="modalDelete<?php echo $row['id_akreditasi']; ?>" tabindex="-1" aria-labelledby="modalDeleteLabel" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">

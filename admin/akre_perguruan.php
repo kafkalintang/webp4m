@@ -75,11 +75,7 @@ if (isset($_POST["submit"])) {
         if ($fileType == 'pdf') {
             if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
                 $sertifikat = $filePath;
-            } else {
-                echo "<script>alert('Gagal mengupload sertifikat!');</script>";
             }
-        } else {
-            echo "<script>alert('Hanya file dengan format pdf yang diperbolehkan untuk sertifikat!');</script>";
         }
     }
 
@@ -93,6 +89,73 @@ if (isset($_POST["submit"])) {
             window.location='akre_perguruan.php';</script>";
     } else {
         echo "<script>alert('Data gagal ditambahkan!');
+        window.location='akre_perguruan.php';</script>";
+    }
+}
+
+// =========================================================================
+// PROSES EDIT / UPDATE DATA (DENGAN RIWAYAT SERTIFIKAT)
+// =========================================================================
+if (isset($_POST["update"])) {
+    $id_perguruan = mysqli_real_escape_string($koneksi, $_POST["id_perguruan"]);
+    $peringkat = $_POST["peringkat"];
+    $id_lembaga = $_POST["id_lembaga"];
+
+    // ==== HANDLE "LAINNYA" ====
+    if (!empty($_POST['peringkat_baru'])) {
+        $peringkat = trim($_POST['peringkat_baru']);
+    }
+    if (!empty($_POST['id_lembaga_baru'])) {
+        $id_lembaga = getOrCreateId($koneksi, 'lembaga', 'id_lembaga', 'nama_lembaga', $_POST['id_lembaga_baru']);
+    }
+
+    $tanggal_mulai = $_POST["tanggal_mulai"];
+    $tanggal_berakhir = $_POST["tanggal_berakhir"];
+    $sertifikat_sql = "";
+
+    // Ambil data sertifikat lama dari database
+    $query_lama = mysqli_query($koneksi, "SELECT sertifikat FROM akreditasi_perguruan WHERE id_perguruan='$id_perguruan'");
+    $data_lama = mysqli_fetch_assoc($query_lama);
+    $sertifikat_lama = $data_lama['sertifikat'] ?? '';
+
+    // Upload Sertifikat Baru (jika ada)
+    if (!empty($_FILES['sertifikat']['name'])) {
+        $uploadDir = 'uploads/sertifikat/';
+        $fileName = time() . '-' . basename($_FILES['sertifikat']['name']);
+        $filePath = $uploadDir . $fileName;
+
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $fileType = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if ($fileType == 'pdf') {
+            if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
+                // Jika sudah ada sertifikat lama, gabungkan dengan koma (append riwayat)
+                if (!empty($sertifikat_lama)) {
+                    $sertifikat_baru_full = $sertifikat_lama . ',' . $filePath;
+                } else {
+                    $sertifikat_baru_full = $filePath;
+                }
+                $sertifikat_sql = ", sertifikat='$sertifikat_baru_full'";
+            }
+        }
+    }
+
+    $sql = "UPDATE akreditasi_perguruan SET 
+            peringkat='$peringkat', 
+            id_lembaga='$id_lembaga', 
+            tanggal_mulai='$tanggal_mulai', 
+            tanggal_berakhir='$tanggal_berakhir' 
+            $sertifikat_sql 
+            WHERE id_perguruan='$id_perguruan'";
+
+    $result = mysqli_query($koneksi, $sql);
+    if ($result) {
+        echo "<script>alert('Data telah diupdate');
+            window.location='akre_perguruan.php';</script>";
+    } else {
+        echo "<script>alert('Data gagal diupdate!');
         window.location='akre_perguruan.php';</script>";
     }
 }
@@ -114,7 +177,7 @@ if (isset($_POST["delete"])) {
 // =========================================================================
 // AMBIL DATA UNTUK DITAMPILKAN
 // =========================================================================
-$akreditasi_perguruan = query("
+$query_akreditasi = query("
     SELECT 
         ap.id_perguruan,
         ap.peringkat,
@@ -126,6 +189,7 @@ $akreditasi_perguruan = query("
     FROM akreditasi_perguruan AS ap
     LEFT JOIN lembaga AS l 
         ON l.id_lembaga = ap.id_lembaga
+    ORDER BY ap.id_perguruan DESC
 ");
 
 // Pagination setup
@@ -135,15 +199,43 @@ $start = ($page > 1) ? ($page * $limit) - $limit : 0;
 // Pencarian
 $search = isset($_GET['nama_lembaga']) ? trim($_GET['nama_lembaga']) : '';
 if ($search !== '') {
-    $akreditasi_perguruan = array_filter($akreditasi_perguruan, function ($item) use ($search) {
+    $query_akreditasi = array_filter($query_akreditasi, function ($item) use ($search) {
         return stripos((string)$item['nama_lembaga'], $search) !== false;
     });
 }
 // Query untuk mendapatkan data
-$totalData = count($akreditasi_perguruan);
+$totalData = count($query_akreditasi);
 $totalPages = ceil($totalData / $limit);
-$akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
+$akreditasi_perguruan = array_slice($query_akreditasi, $start, $limit);
 
+// =========================================================================
+// LOGIKA GROUPING (MENGGABUNGKAN PERINGKAT & LEMBAGA YANG SAMA)
+// =========================================================================
+$grouped_data = [];
+foreach ($akreditasi_perguruan as $row) {
+    // Kunci unik berdasarkan peringkat dan id_lembaga
+    $key = $row['peringkat'] . '|' . $row['id_lembaga'];
+    
+    if (!isset($grouped_data[$key])) {
+        $grouped_data[$key] = [
+            'peringkat' => $row['peringkat'],
+            'id_lembaga' => $row['id_lembaga'],
+            'nama_lembaga' => $row['nama_lembaga'],
+            'details' => [] // Menyimpan list tanggal & sertifikat
+        ];
+    }
+    
+    // Pecah sertifikat berdasarkan koma
+    $sertifikats = !empty($row['sertifikat']) ? explode(',', $row['sertifikat']) : [];
+    
+    // Gabungkan tanggal dan sertifikat ke dalam array details
+    $grouped_data[$key]['details'][] = [
+        'id_perguruan' => $row['id_perguruan'],
+        'tanggal_mulai' => $row['tanggal_mulai'],
+        'tanggal_berakhir' => $row['tanggal_berakhir'],
+        'sertifikats' => $sertifikats
+    ];
+}
 ?>
 
 <!DOCTYPE html>
@@ -168,154 +260,41 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
     <link href="css/style.css" rel="stylesheet">
 
     <style>
-    .logo-image {
-        height: 40px; 
-        width: auto; 
-    }
+    .logo-image { height: 40px; width: auto; }
+    .table-custom { background-color: white; color: #333; width: 100%; }
+    .table-custom thead th { background-color: #0d83fd; color: white; text-align: center; }
+    .table-custom td, .table-custom th { text-align: center; vertical-align: middle; }
+    .table-custom .btn-icon { padding: 0; margin: 0; border: none; background: transparent; font-size: 16px; }
+    .table-custom .btn-icon i { font-size: 18px; margin: 0; }
+    .table-custom .btn-warning i { color: #ffc107; }
+    .table-custom .btn-danger i { color: #dc3545; }
+    .table-custom .btn-icon:hover { color: #0d83fd; }
 
-    .table-custom {
-      background-color: white;
-      color: #333;
-      width: 100%;
-    }
-    .table-custom thead th {
-      background-color: #0d83fd;
-      color: white;
-      text-align: center;
-    }
-    .table-custom td, .table-custom th {
-      text-align: center;
-      vertical-align: middle;
-    }
-    .table-custom .btn-icon {
-      padding: 0;
-      margin: 0;
-      border: none;
-      background: transparent;
-      font-size: 16px;
-    }
-    .table-custom .btn-icon i {
-      font-size: 18px;
-      margin: 0;
-    }
-    .table-custom .btn-warning i {
-      color: #ffc107; 
-    }
-    .table-custom .btn-danger i {
-      color: #dc3545; 
-    }
-    .table-custom .btn-icon:hover {
-      color: #0d83fd;
-    }
+    /* Styling untuk Tabel Grouping */
+    .table-custom tbody tr.group-row td { border-bottom: 1px solid #dee2e6; }
+    .table-custom tbody tr.detail-row td { border-bottom: none; padding: 8px 10px; font-size: 14px; }
+    .table-custom tbody tr.detail-row:last-child td { border-bottom: 1px solid #dee2e6; }
+    .table-custom tbody tr.detail-row:hover { background-color: #f8f9fa; }
+    
+    .file-link { display: block; text-align: left; margin-bottom: 3px; color: #0d83fd; text-decoration: none; font-size: 13px; }
+    .file-link:hover { text-decoration: underline; }
+    .file-link i { color: #dc3545; margin-right: 5px; }
 
-    .pagination-custom {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    list-style: none;
-    padding: 0;
-    margin: 15px 0; 
-    gap: 5px; 
-    }
+    .pagination-custom { display: flex; justify-content: center; align-items: center; list-style: none; padding: 0; margin: 15px 0; gap: 5px; }
+    .pagination-custom .page-item { display: flex; align-items: center; justify-content: center; transition: all 0.2s ease-in-out; }
+    .pagination-custom .page-link { display: flex; align-items: center; justify-content: center; padding: 6px 10px; font-size: 12px; font-weight: 500; color: #0d83fd; background-color: white; border: 1.5px solid #0d83fd; border-radius: 8px; box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.08); transition: all 0.2s ease-in-out; }
+    .pagination-custom .page-item.active .page-link { background-color: #0d83fd; color: white; border-color: #0d83fd; box-shadow: 1px 1px 10px rgba(13, 131, 253, 0.2); }
+    .pagination-custom .page-link:hover { background-color: rgba(13, 131, 253, 0.1); color: #0d83fd; transform: scale(1.05); }
+    .pagination-custom .page-item.disabled .page-link { color: #aaa; border-color: #ddd; background-color: #f8f9fa; cursor: not-allowed; }
+    .pagination-custom .arrow { font-size: 14px; padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 
-    .pagination-custom .page-item {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease-in-out;
-    }
-
-    .pagination-custom .page-link {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px 10px; 
-        font-size: 12px; 
-        font-weight: 500;
-        color: #0d83fd;
-        background-color: white;
-        border: 1.5px solid #0d83fd; 
-        border-radius: 8px; 
-        box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.08);
-        transition: all 0.2s ease-in-out;
-    }
-
-    .pagination-custom .page-item.active .page-link {
-        background-color: #0d83fd;
-        color: white;
-        border-color: #0d83fd;
-        box-shadow: 1px 1px 10px rgba(13, 131, 253, 0.2);
-    }
-
-    .pagination-custom .page-link:hover {
-        background-color: rgba(13, 131, 253, 0.1);
-        color: #0d83fd;
-        transform: scale(1.05);
-    }
-
-    .pagination-custom .page-item.disabled .page-link {
-        color: #aaa;
-        border-color: #ddd;
-        background-color: #f8f9fa;
-        cursor: not-allowed;
-    }
-
-    .pagination-custom .arrow {
-        font-size: 14px; 
-        padding: 6px; 
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .search-bar-wrapper {
-      display: flex;
-      justify-content: flex-start;
-      margin-bottom: 20px;
-    }
-
-    .search-bar-wrapper form {
-      display: flex;
-      align-items: center; 
-    }
-
-    .search-bar {
-      border: 1px solid #0d83fd;
-      border-radius: 20px;
-      padding: 5px 15px;
-      width: 250px;
-      margin-right: -40px; 
-    }
-
-    .btn-cari {
-      background-color: #0d83fd;
-      color: white;
-      border-radius: 20px;
-      padding: 5px 15px;
-      border: none;
-      margin-left: -8px;
-    }
-
-    .btn-cari i {
-      font-size: 18px;
-    }
-
-    .showing-info {
-      font-size: 14px;
-      color: #0d83fd;
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    .btn-tambah {
-    background-color: #0d83fd;
-    color: white;
-    border-radius: 20px;
-    padding: 5px 15px; 
-    border: none;
-    }
-
+    .search-bar-wrapper { display: flex; justify-content: flex-start; margin-bottom: 20px; }
+    .search-bar-wrapper form { display: flex; align-items: center; }
+    .search-bar { border: 1px solid #0d83fd; border-radius: 20px; padding: 5px 15px; width: 250px; margin-right: -40px; }
+    .btn-cari { background-color: #0d83fd; color: white; border-radius: 20px; padding: 5px 15px; border: none; margin-left: -8px; }
+    .btn-cari i { font-size: 18px; }
+    .showing-info { font-size: 14px; color: #0d83fd; text-align: center; margin-bottom: 10px; }
+    .btn-tambah { background-color: #0d83fd; color: white; border-radius: 20px; padding: 5px 15px; border: none; }
     .hidden { display: none !important; }
     </style>
 
@@ -332,6 +311,35 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
             input.required = false;
             input.value = '';
         }
+    }
+
+    function editData(data) {
+        ['edit_peringkat_baru','edit_lembaga_baru'].forEach(function(id){
+            var el = document.getElementById(id);
+            if (el) { el.value = ''; el.classList.add('hidden'); el.required = false; }
+        });
+
+        document.getElementById('edit_id_perguruan').value = data.id_perguruan;
+        document.getElementById('edit_tanggal_mulai').value = data.tanggal_mulai;
+        document.getElementById('edit_tanggal_berakhir').value = data.tanggal_berakhir;
+
+        var selPeringkat = document.getElementById('edit_peringkat');
+        var foundPeringkat = false;
+        for (var i = 0; i < selPeringkat.options.length; i++) {
+            if (selPeringkat.options[i].value === data.peringkat) {
+                selPeringkat.selectedIndex = i;
+                foundPeringkat = true;
+                break;
+            }
+        }
+        if (!foundPeringkat) {
+            selPeringkat.value = 'Lainnya';
+            document.getElementById('edit_peringkat_baru').classList.remove('hidden');
+            document.getElementById('edit_peringkat_baru').required = true;
+            document.getElementById('edit_peringkat_baru').value = data.peringkat;
+        }
+
+        document.getElementById('edit_id_lembaga').value = data.id_lembaga;
     }
 </script>
 
@@ -422,53 +430,74 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                             </form>
                             </div>
                         </div>      
-                        <!-- Table -->
+                        <!-- Table Grouped -->
                         <div class="table-responsive">
                             <table class="table table-hover table-custom">
                             <thead>
                                 <tr>
-                                <th>No</th>
-                                <th>Peringkat</th>
-                                <th>Lembaga</th>
-                                <th>Tanggal Mulai</th>
-                                <th>Tanggal Berakhir</th>
-                                <th>Sertifikat</th>
-                                <th>Aksi</th>
+                                    <th>No</th>
+                                    <th>Peringkat</th>
+                                    <th>Lembaga</th>
+                                    <th>Tanggal Mulai</th>
+                                    <th>Tanggal Berakhir</th>
+                                    <th>Sertifikat</th>
+                                    <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php if (!empty($akreditasi_perguruan)): ?>
-                                <?php $id=1; ?>
-                                <?php foreach ($akreditasi_perguruan as $row): ?>
-                                <tr>
-                                    <td><?php echo $id; ?></td>
-                                    <td><?php echo $row["peringkat"]; ?></td>
-                                    <td><?php echo $row["nama_lembaga"]; ?></td>
-                                    <td><?php echo $row["tanggal_mulai"]; ?></td>
-                                    <td><?php echo $row["tanggal_berakhir"]; ?></td>
-                                    <td>
-                                    <?php if (!empty($row['sertifikat'])): ?>
-                                        <a href="<?php echo $row['sertifikat']; ?>" target="_blank" class="btn btn-icon btn-info">
-                                            <i class="fas fa-eye"></i> View
-                                        </a>
-                                    <?php else: ?>
-                                        <span class="text-muted">No File</span>
-                                    <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?php echo $row['id_perguruan']; ?>"><i class="fas fa-trash-alt"></i></button>                                    
-                                    </td>
-                                </tr>
-                                <?php $id++; ?>
+                                <?php if (!empty($grouped_data)): ?>
+                                <?php $no = 1; ?>
+                                <?php foreach ($grouped_data as $group): ?>
+                                    
+                                    <?php 
+                                        // Hitung total baris detail untuk rowspan
+                                        $rowspan = count($group['details']); 
+                                    ?>
+                                    
+                                    <?php foreach ($group['details'] as $index => $detail): ?>
+                                    <tr class="<?php echo ($index == 0) ? 'group-row' : 'detail-row'; ?>">
+                                        
+                                        <?php if ($index == 0): ?>
+                                            <!-- Kolom No, Peringkat, Lembaga hanya dirender di baris pertama -->
+                                            <td rowspan="<?php echo $rowspan; ?>"><?php echo $no++; ?></td>
+                                            <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["peringkat"]; ?></td>
+                                            <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["nama_lembaga"]; ?></td>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Kolom Tanggal & Sertifikat selalu dirender -->
+                                        <td><?php echo $detail["tanggal_mulai"]; ?></td>
+                                        <td><?php echo $detail["tanggal_berakhir"]; ?></td>
+                                        <td>
+                                            <?php if (!empty($detail['sertifikats'])): ?>
+                                                <?php foreach ($detail['sertifikats'] as $pdf): ?>
+                                                    <a href="<?php echo trim($pdf); ?>" target="_blank" class="file-link">
+                                                        <i class="fas fa-file-pdf"></i> <?php echo basename(trim($pdf)); ?>
+                                                    </a>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <span class="text-muted">No File</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        
+                                        <!-- Kolom Aksi (Edit & Hapus) hanya untuk baris tanggal paling baru -->
+                                        <td>
+                                            <div class="d-flex justify-content-center gap-1">
+                                                <button class="btn btn-icon btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit" onclick='editData(<?php echo json_encode($detail) ?>)' title="Edit / Perpanjang"><i class="fas fa-edit"></i></button>
+                                                <button class="btn btn-icon btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete<?php echo $detail['id_perguruan']; ?>" title="Hapus"><i class="fas fa-trash-alt"></i></button>                                    
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
                                 <?php endforeach; ?>
                                 <?php else: ?>
                                 <tr>
-                                    <td colspan="10">Tidak ada data yang tersedia.</td>
+                                    <td colspan="7" class="text-center">Tidak ada data yang tersedia.</td>
                                 </tr>
                                 <?php endif; ?>
                             </tbody>
                             </table>
                         </div>
+                        
                         <!-- Pagination -->
                         <div class="showing-info text-center mb-3">
                             Menampilkan <?php echo ($totalData > 0) ? $start + 1 : 0; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
@@ -507,7 +536,6 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                         <div class="modal-body">
                                 <div class="mb-3">
                                     <label for="peringkat" class="form-label">Peringkat</label>
-                                    <!-- KEMBALI KE SELECT BIASA (TANPA SELECTPICKER) -->
                                     <select class="form-select" name="peringkat" id="peringkat" required onchange="toggleLainnya(this, 'peringkat_baru')">
                                         <option value="" selected disabled>-- Pilih Peringkat --</option>
                                         <option value="Unggul">Unggul</option>
@@ -522,7 +550,6 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                                 </div>
                                 <div class="mb-3" id="id_lembaga">
                                     <label for="id_lembaga" class="form-label">Lembaga</label>
-                                    <!-- KEMBALI KE SELECT BIASA (TANPA SELECTPICKER) -->
                                     <select class="form-select" name="id_lembaga" id="id_lembaga" onchange="toggleLainnya(this, 'lembaga_baru')">
                                         <option value="0" selected disabled>-- Pilih Lembaga --</option>
                                         <?php
@@ -556,6 +583,67 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                 </div>
             </div>
 
+            <!-- Modal Edit Data -->
+            <div class="modal fade" id="modalEdit" tabindex="-1" aria-labelledby="modalEditLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalEditLabel">Edit / Perpanjang Data</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="id_perguruan" id="edit_id_perguruan">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="edit_peringkat" class="form-label">Peringkat</label>
+                                    <select class="form-select" name="peringkat" id="edit_peringkat" required onchange="toggleLainnya(this, 'edit_peringkat_baru')">
+                                        <option value="" selected disabled>-- Pilih Peringkat --</option>
+                                        <option value="Unggul">Unggul</option>
+                                        <option value="Baik Sekali">Baik Sekali</option>
+                                        <option value="Baik">Baik</option>
+                                        <option value="Cukup Sekali">Cukup Sekali</option>
+                                        <option value="Cukup">Cukup</option>
+                                        <option value="Belum Ada Peringkat">Belum Ada Peringkat</option>
+                                        <option value="Lainnya">+ Lainnya (Ketik Manual)</option>
+                                    </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="peringkat_baru" id="edit_peringkat_baru" placeholder="Ketik peringkat baru...">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_id_lembaga" class="form-label">Lembaga</label>
+                                    <select class="form-select" name="id_lembaga" id="edit_id_lembaga" onchange="toggleLainnya(this, 'edit_lembaga_baru')">
+                                        <option value="0" selected disabled>-- Pilih Lembaga --</option>
+                                        <?php
+                                            $ambil = mysqli_query($koneksi,"SELECT * FROM lembaga");
+                                            while ($data = mysqli_fetch_assoc($ambil)){
+                                                echo '<option value="'.$data['id_lembaga'].'">'.strtoupper($data['nama_lembaga']).'</option>';
+                                            }
+                                        ?>
+                                        <option value="Lainnya">+ Lainnya (Ketik Manual)</option>
+                                    </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_lembaga_baru" id="edit_lembaga_baru" placeholder="Ketik nama lembaga baru...">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_tanggal_mulai" class="form-label">Tanggal Mulai</label>
+                                    <input type="date" class="form-control" name="tanggal_mulai" id="edit_tanggal_mulai" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_tanggal_berakhir" class="form-label">Tanggal Berakhir</label>
+                                    <input type="date" class="form-control" name="tanggal_berakhir" id="edit_tanggal_berakhir" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_sertifikat" class="form-label">Sertifikat Baru (PDF)</label>
+                                    <input type="file" class="form-control" id="edit_sertifikat" name="sertifikat" accept=".pdf">
+                                    <small class="text-muted text-danger">*Unggah file baru untuk menambahkan riwayat. Kosongkan jika tidak ada.</small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" name="update" class="btn btn-primary">Update Data</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <?php foreach ($akreditasi_perguruan as $row): ?>
             <!-- Modal Delete -->
             <div class="modal fade" id="modalDelete<?php echo $row['id_perguruan']; ?>" tabindex="-1" aria-labelledby="modalDeleteLabel" aria-hidden="true">
@@ -568,7 +656,7 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                         <form method="post">
                             <input type="hidden" name="id_perguruan" value="<?php echo $row['id_perguruan']; ?>">
                             <div class="modal-body">
-                                <p>Apakah Anda yakin ingin menghapus data <b><?php echo $row['peringkat']; ?></b>?</p>
+                                <p>Apakah Anda yakin ingin menghapus data ini?</p>
                             </div>
                             <div class="modal-footer">
                                 <button type="submit" name="delete" class="btn btn-danger">Hapus</button>
