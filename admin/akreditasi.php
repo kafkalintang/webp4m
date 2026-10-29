@@ -1,8 +1,71 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1); // Bisa dihapus jika sudah production
+
 include "../koneksi.php";
 /** @var mysqli $koneksi */
 
-// Proses Tambah Data
+// =========================================================================
+// FUNGSI HELPER: Auto-insert master data jika user memilih "Lainnya"
+// =========================================================================
+
+/**
+ * Mendapatkan ID dari nama, jika tidak ada maka insert baru.
+ * 
+ * @param mysqli $koneksi Koneksi database
+ * @param string $table Nama tabel
+ * @param string $idField Nama kolom Primary Key
+ * @param string $nameField Nama kolom yang dicek/di-insert
+ * @param string $newName Nilai baru yang diketik user
+ * @param array $extraFields Kolom tambahan (opsional)
+ * @return int ID dari data yang di-insert/ditemukan
+ */
+function getOrCreateId($koneksi, $table, $idField, $nameField, $newName, $extraFields = [])
+{
+    $newName = trim($newName);
+    if ($newName === '') return 0;
+
+    $escaped = mysqli_real_escape_string($koneksi, $newName);
+    $cek = mysqli_query($koneksi, "SELECT $idField FROM $table WHERE LOWER($nameField) = LOWER('$escaped') LIMIT 1");
+    if ($cek && mysqli_num_rows($cek) > 0) {
+        $row = mysqli_fetch_assoc($cek);
+        return (int)$row[$idField];
+    }
+
+    $cols = [$nameField];
+    $vals = ["'$escaped'"];
+    foreach ($extraFields as $col => $val) {
+        $cols[] = $col;
+        $vals[] = "'" . mysqli_real_escape_string($koneksi, $val) . "'";
+    }
+    $sql = "INSERT INTO $table (" . implode(',', $cols) . ") VALUES (" . implode(',', $vals) . ")";
+    if (mysqli_query($koneksi, $sql)) {
+        return (int)mysqli_insert_id($koneksi);
+    }
+    return 0;
+}
+
+/**
+ * Simpan nama jurusan ke prodi terpilih (normalisasi)
+ * 
+ * @param mysqli $koneksi Koneksi database
+ * @param string $nama_jurusan Nama jurusan
+ * @param int $id_prodi ID program studi
+ * @return string Nama jurusan yang sudah dinormalisasi
+ */
+function normalizeJurusan($koneksi, $nama_jurusan, $id_prodi)
+{
+    $nama_jurusan = trim($nama_jurusan);
+    if ($nama_jurusan !== '' && $id_prodi > 0) {
+        $escaped = mysqli_real_escape_string($koneksi, $nama_jurusan);
+        mysqli_query($koneksi, "UPDATE program_studi SET nama_jurusan='$escaped' WHERE id_prodi='$id_prodi'");
+    }
+    return $nama_jurusan;
+}
+
+// =========================================================================
+// PROSES TAMBAH DATA
+// =========================================================================
 if (isset($_POST["submit"])) {
     $akreditasi_tipe = $_POST["akreditasi"];
     $id_unit = (isset($_POST["id_unit"]) && $_POST["id_unit"] !== "0") ? (int)$_POST["id_unit"] : 0;
@@ -11,14 +74,36 @@ if (isset($_POST["submit"])) {
     $peringkat = $_POST["peringkat"];
     $id_lembaga = (isset($_POST["id_lembaga"]) && $_POST["id_lembaga"] !== "0") ? (int)$_POST["id_lembaga"] : 0;
     $id_jenis = (isset($_POST["id_jenis"]) && $_POST["id_jenis"] !== "0") ? (int)$_POST["id_jenis"] : 0;
-    $tanggal_mulai = $_POST["tanggal_mulai"];
-    $tanggal_berakhir = $_POST["tanggal_berakhir"];
+
+    // ==== HANDLE "LAINNYA" ====
+    if (!empty($_POST['id_unit_baru'])) {
+        $id_unit = getOrCreateId($koneksi, 'unit', 'id_unit', 'nama_unit_kerja', $_POST['id_unit_baru']);
+    }
+    if (!empty($_POST['nama_jurusan_baru'])) {
+        $nama_jurusan = trim($_POST['nama_jurusan_baru']);
+    }
+    if (!empty($_POST['id_prodi_baru'])) {
+        $id_prodi = getOrCreateId($koneksi, 'program_studi', 'id_prodi', 'nama_program_studi', $_POST['id_prodi_baru'], [
+            'nama_jurusan' => $nama_jurusan
+        ]);
+    }
+    if (!empty($_POST['id_lembaga_baru'])) {
+        $id_lembaga = getOrCreateId($koneksi, 'lembaga', 'id_lembaga', 'nama_lembaga', $_POST['id_lembaga_baru']);
+    }
+    if (!empty($_POST['id_jenis_baru'])) {
+        $id_jenis = getOrCreateId($koneksi, 'jenis_akreditasi', 'id_jenis', 'jenis_akreditasi', $_POST['id_jenis_baru']);
+    }
+    if ($nama_jurusan !== '' && $id_prodi > 0) {
+        normalizeJurusan($koneksi, $nama_jurusan, $id_prodi);
+    }
 
     if ($akreditasi_tipe == 'Unit Kerja') {
         $id_prodi = 0;
         $nama_jurusan = "";
     }
 
+    $tanggal_mulai = $_POST["tanggal_mulai"];
+    $tanggal_berakhir = $_POST["tanggal_berakhir"];
     $sertifikat = '';
 
     // Upload Sertifikat (PDF)
@@ -47,7 +132,9 @@ if (isset($_POST["submit"])) {
     }
 }
 
-// Proses Edit Data
+// =========================================================================
+// PROSES EDIT DATA
+// =========================================================================
 if (isset($_POST["update"])) {
     $id_akreditasi = $_POST["id_akreditasi"];
     $akreditasi_tipe = $_POST["akreditasi"];
@@ -57,14 +144,36 @@ if (isset($_POST["update"])) {
     $peringkat = $_POST["peringkat"];
     $id_lembaga = (isset($_POST["id_lembaga"]) && $_POST["id_lembaga"] !== "0") ? (int)$_POST["id_lembaga"] : 0;
     $id_jenis = (isset($_POST["id_jenis"]) && $_POST["id_jenis"] !== "0") ? (int)$_POST["id_jenis"] : 0;
-    $tanggal_mulai = $_POST["tanggal_mulai"];
-    $tanggal_berakhir = $_POST["tanggal_berakhir"];
+
+    // ==== HANDLE "LAINNYA" ====
+    if (!empty($_POST['id_unit_baru'])) {
+        $id_unit = getOrCreateId($koneksi, 'unit', 'id_unit', 'nama_unit_kerja', $_POST['id_unit_baru']);
+    }
+    if (!empty($_POST['nama_jurusan_baru'])) {
+        $nama_jurusan = trim($_POST['nama_jurusan_baru']);
+    }
+    if (!empty($_POST['id_prodi_baru'])) {
+        $id_prodi = getOrCreateId($koneksi, 'program_studi', 'id_prodi', 'nama_program_studi', $_POST['id_prodi_baru'], [
+            'nama_jurusan' => $nama_jurusan
+        ]);
+    }
+    if (!empty($_POST['id_lembaga_baru'])) {
+        $id_lembaga = getOrCreateId($koneksi, 'lembaga', 'id_lembaga', 'nama_lembaga', $_POST['id_lembaga_baru']);
+    }
+    if (!empty($_POST['id_jenis_baru'])) {
+        $id_jenis = getOrCreateId($koneksi, 'jenis_akreditasi', 'id_jenis', 'jenis_akreditasi', $_POST['id_jenis_baru']);
+    }
+    if ($nama_jurusan !== '' && $id_prodi > 0) {
+        normalizeJurusan($koneksi, $nama_jurusan, $id_prodi);
+    }
 
     if ($akreditasi_tipe == 'Unit Kerja') {
         $id_prodi = 0;
         $nama_jurusan = "";
     }
 
+    $tanggal_mulai = $_POST["tanggal_mulai"];
+    $tanggal_berakhir = $_POST["tanggal_berakhir"];
     $sertifikat_sql = "";
 
     // Upload Sertifikat Baru (PDF)
@@ -98,7 +207,9 @@ if (isset($_POST["update"])) {
     }
 }
 
-// Proses Delete Data
+// =========================================================================
+// PROSES DELETE DATA
+// =========================================================================
 if (isset($_POST["delete"])) {
     $id_akreditasi = mysqli_real_escape_string($koneksi, $_POST["id_akreditasi"]);
     $delete = mysqli_query($koneksi, "DELETE FROM akreditasi WHERE id_akreditasi='$id_akreditasi'");
@@ -109,7 +220,9 @@ if (isset($_POST["delete"])) {
     }
 }
 
-// Ambil data setelah proses CRUD
+// =========================================================================
+// AMBIL DATA UNTUK DITAMPILKAN
+// =========================================================================
 $akreditasi = query("SELECT
     akreditasi.id_akreditasi,
     akreditasi.akreditasi,
@@ -197,7 +310,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
     .search-form-wrapper .btn-cari { border-radius: 0 20px 20px 0; background-color: #0d83fd; color: white; }
     .showing-info { font-size: 14px; color: #0d83fd; text-align: center; margin-bottom: 10px; }
     .btn-tambah { background-color: #0d83fd; color: white; border-radius: 20px; padding: 5px 15px; border: none; }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
     </style>
 
 <script>
@@ -218,7 +331,7 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
         var select = document.getElementById(prefix + 'select_prodi');
         for (var i = 0; i < select.options.length; i++) {
             var opt = select.options[i];
-            if (opt.value === '0') continue;
+            if (opt.value === '0' || opt.value === 'Lainnya') continue;
             var cocok = opt.getAttribute('data-jurusan') === jurusan;
             opt.hidden = !cocok;
             opt.disabled = !cocok;
@@ -226,7 +339,27 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
         select.value = '0';
     }
 
+    function toggleLainnya(select, inputId) {
+        var input = document.getElementById(inputId);
+        if (!input) return;
+        if (select.value === 'Lainnya') {
+            input.classList.remove('hidden');
+            input.required = true;
+            input.focus();
+        } else {
+            input.classList.add('hidden');
+            input.required = false;
+            input.value = '';
+        }
+    }
+
     function editData(data) {
+        // Reset input "Lainnya"
+        ['edit_unit_baru','edit_jurusan_baru','edit_prodi_baru','edit_lembaga_baru','edit_jenis_baru'].forEach(function(id){
+            var el = document.getElementById(id);
+            if (el) { el.value = ''; el.classList.add('hidden'); el.required = false; }
+        });
+
         document.getElementById('edit_id_akreditasi').value = data.id_akreditasi;
         document.getElementById('edit_tanggal_mulai').value = data.tanggal_mulai;
         document.getElementById('edit_tanggal_berakhir').value = data.tanggal_berakhir;
@@ -439,24 +572,30 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 </div>
                                 <div class="mb-3 hidden" id="id_unit">
                                     <label for="id_unit" class="form-label">Nama Unit Kerja</label>
-                                    <select class="form-select" name="id_unit">
+                                    <select class="form-select" name="id_unit" id="select_unit_tambah" onchange="toggleLainnya(this, 'unit_baru_tambah')">
                                         <option value="0" selected disabled>-- Pilih Unit Kerja --</option>
                                         <?php $ambil = mysqli_query($koneksi, "SELECT * FROM unit"); while ($data = mysqli_fetch_assoc($ambil)) { echo '<option value="' . $data['id_unit'] . '">' . $data['nama_unit_kerja'] . '</option>'; } ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_unit_baru" id="unit_baru_tambah" placeholder="Ketik nama unit kerja baru...">
                                 </div>
                                 <div class="mb-3 hidden" id="nama_jurusan">
                                     <label for="nama_jurusan" class="form-label">Nama Jurusan</label>
-                                    <select class="form-select" name="nama_jurusan" onchange="filterProdi(this.value)">
+                                    <select class="form-select" name="nama_jurusan" id="select_jurusan_tambah" onchange="toggleLainnya(this, 'jurusan_baru_tambah'); if(this.value!=='Lainnya') filterProdi(this.value)">
                                         <option value="0" selected disabled>-- Pilih Jurusan --</option>
                                         <?php $ambil = mysqli_query($koneksi, "SELECT DISTINCT nama_jurusan FROM program_studi WHERE nama_jurusan <> '' ORDER BY nama_jurusan"); while ($data = mysqli_fetch_assoc($ambil)) { $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="' . $jur . '">' . $jur . '</option>'; } ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="nama_jurusan_baru" id="jurusan_baru_tambah" placeholder="Ketik nama jurusan baru...">
                                 </div>
                                 <div class="mb-3 hidden" id="id_prodi">
                                     <label for="id_prodi" class="form-label">Nama Program Studi</label>
-                                    <select class="form-select" name="id_prodi" id="select_prodi">
+                                    <select class="form-select" name="id_prodi" id="select_prodi" onchange="toggleLainnya(this, 'prodi_baru_tambah')">
                                         <option value="0" selected disabled>-- Pilih Program Studi --</option>
                                         <?php $ambil = mysqli_query($koneksi, "SELECT * FROM program_studi ORDER BY nama_program_studi"); while ($data = mysqli_fetch_assoc($ambil)) { $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="' . $data['id_prodi'] . '" data-jurusan="' . $jur . '" hidden disabled>' . $data['nama_program_studi'] . '</option>'; } ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_prodi_baru" id="prodi_baru_tambah" placeholder="Ketik nama program studi baru...">
                                 </div>
                                 <div class="mb-3">
                                     <label for="peringkat" class="form-label">Predikat</label>
@@ -471,14 +610,16 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 </div>
                                 <div class="mb-3" id="id_lembaga">
                                     <label for="id_lembaga" class="form-label">Lembaga</label>
-                                    <select class="form-select" name="id_lembaga">
+                                    <select class="form-select" name="id_lembaga" id="select_lembaga_tambah" onchange="toggleLainnya(this, 'lembaga_baru_tambah')">
                                         <option value="0" selected disabled>-- Pilih Lembaga --</option>
                                         <?php $ambil = mysqli_query($koneksi, "SELECT * FROM lembaga"); while ($data = mysqli_fetch_assoc($ambil)) { echo '<option value="' . $data['id_lembaga'] . '">' . strtoupper($data['nama_lembaga']) . '</option>'; } ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_lembaga_baru" id="lembaga_baru_tambah" placeholder="Ketik nama lembaga baru...">
                                 </div>
                                 <div class="mb-3" id="id_jenis">
                                     <label for="id_jenis" class="form-label">Jenis Akreditasi</label>
-                                    <select class="form-select" name="id_jenis">
+                                    <select class="form-select" name="id_jenis" id="select_jenis_tambah" onchange="toggleLainnya(this, 'jenis_baru_tambah')">
                                         <option value="0" selected disabled>-- Pilih Jenis Akreditasi --</option>
                                         <?php 
                                             $ambil = mysqli_query($koneksi, "SELECT * FROM jenis_akreditasi WHERE jenis_akreditasi IN ('Nasional', 'Internasional')"); 
@@ -486,7 +627,9 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                                 echo '<option value="' . $data['id_jenis'] . '">' . $data['jenis_akreditasi'] . '</option>'; 
                                             } 
                                         ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_jenis_baru" id="jenis_baru_tambah" placeholder="Ketik jenis akreditasi baru...">
                                 </div>
                                 <div class="mb-3">
                                     <label for="tanggal_mulai" class="form-label">Tanggal Mulai</label>
@@ -533,24 +676,30 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 </div>
                                 <div class="mb-3 hidden" id="edit_id_unit">
                                     <label for="edit_id_unit" class="form-label">Nama Unit Kerja</label>
-                                    <select class="form-select" name="id_unit" id="edit_id_unit">
+                                    <select class="form-select" name="id_unit" id="edit_id_unit" onchange="toggleLainnya(this, 'edit_unit_baru')">
                                         <option value="0" selected disabled>-- Pilih Unit Kerja --</option>
                                         <?php $ambil = mysqli_query($koneksi, "SELECT * FROM unit"); while ($data = mysqli_fetch_assoc($ambil)) { echo '<option value="' . $data['id_unit'] . '">' . $data['nama_unit_kerja'] . '</option>'; } ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_unit_baru" id="edit_unit_baru" placeholder="Ketik nama unit kerja baru...">
                                 </div>
                                 <div class="mb-3 hidden" id="edit_nama_jurusan">
                                     <label for="edit_nama_jurusan" class="form-label">Nama Jurusan</label>
-                                    <select class="form-select" name="nama_jurusan" id="edit_nama_jurusan" onchange="filterProdi(this.value, 'edit_')">
+                                    <select class="form-select" name="nama_jurusan" id="edit_nama_jurusan" onchange="toggleLainnya(this, 'edit_jurusan_baru'); if(this.value!=='Lainnya') filterProdi(this.value, 'edit_')">
                                         <option value="0" selected disabled>-- Pilih Jurusan --</option>
                                         <?php $ambil = mysqli_query($koneksi, "SELECT DISTINCT nama_jurusan FROM program_studi WHERE nama_jurusan <> '' ORDER BY nama_jurusan"); while ($data = mysqli_fetch_assoc($ambil)) { $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="' . $jur . '">' . $jur . '</option>'; } ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="nama_jurusan_baru" id="edit_jurusan_baru" placeholder="Ketik nama jurusan baru...">
                                 </div>
                                 <div class="mb-3 hidden" id="edit_id_prodi">
                                     <label for="edit_id_prodi" class="form-label">Nama Program Studi</label>
-                                    <select class="form-select" name="id_prodi" id="edit_select_prodi">
+                                    <select class="form-select" name="id_prodi" id="edit_select_prodi" onchange="toggleLainnya(this, 'edit_prodi_baru')">
                                         <option value="0" selected disabled>-- Pilih Program Studi --</option>
                                         <?php $ambil = mysqli_query($koneksi, "SELECT * FROM program_studi ORDER BY nama_program_studi"); while ($data = mysqli_fetch_assoc($ambil)) { $jur = htmlspecialchars($data['nama_jurusan'], ENT_QUOTES); echo '<option value="' . $data['id_prodi'] . '" data-jurusan="' . $jur . '" hidden disabled>' . $data['nama_program_studi'] . '</option>'; } ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_prodi_baru" id="edit_prodi_baru" placeholder="Ketik nama program studi baru...">
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_peringkat" class="form-label">Predikat</label>
@@ -564,20 +713,24 @@ $akreditasi = array_slice($akreditasi, $start, $limit);
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_id_lembaga" class="form-label">Lembaga</label>
-                                    <select class="form-select" name="id_lembaga" id="edit_id_lembaga">
+                                    <select class="form-select" name="id_lembaga" id="edit_id_lembaga" onchange="toggleLainnya(this, 'edit_lembaga_baru')">
                                         <?php $ambil = mysqli_query($koneksi, "SELECT * FROM lembaga"); while ($data = mysqli_fetch_assoc($ambil)) { echo '<option value="' . $data['id_lembaga'] . '">' . strtoupper($data['nama_lembaga']) . '</option>'; } ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_lembaga_baru" id="edit_lembaga_baru" placeholder="Ketik nama lembaga baru...">
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_id_jenis" class="form-label">Jenis Akreditasi</label>
-                                    <select class="form-select" name="id_jenis" id="edit_id_jenis">
+                                    <select class="form-select" name="id_jenis" id="edit_id_jenis" onchange="toggleLainnya(this, 'edit_jenis_baru')">
                                         <?php 
                                             $ambil = mysqli_query($koneksi, "SELECT * FROM jenis_akreditasi WHERE jenis_akreditasi IN ('Nasional', 'Internasional')"); 
                                             while ($data = mysqli_fetch_assoc($ambil)) { 
                                                 echo '<option value="' . $data['id_jenis'] . '">' . $data['jenis_akreditasi'] . '</option>'; 
                                             } 
                                         ?>
+                                        <option value="Lainnya"><i class="fas fa-plus-circle me-1"></i> Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_jenis_baru" id="edit_jenis_baru" placeholder="Ketik jenis akreditasi baru...">
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_tanggal_mulai" class="form-label">Tanggal Mulai</label>
