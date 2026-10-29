@@ -1,6 +1,119 @@
 <?php
 include "../koneksi.php";
 /** @var mysqli $koneksi */
+
+// =========================================================================
+// FUNGSI HELPER: Auto-insert master data jika user memilih "Lainnya"
+// =========================================================================
+
+/**
+ * Mendapatkan ID dari nama, jika tidak ada maka insert baru.
+ * 
+ * @param mysqli $koneksi Koneksi database
+ * @param string $table Nama tabel
+ * @param string $idField Nama kolom Primary Key
+ * @param string $nameField Nama kolom yang dicek/di-insert
+ * @param string $newName Nilai baru yang diketik user
+ * @param array $extraFields Kolom tambahan (opsional)
+ * @return int ID dari data yang di-insert/ditemukan
+ */
+function getOrCreateId($koneksi, $table, $idField, $nameField, $newName, $extraFields = [])
+{
+    $newName = trim($newName);
+    if ($newName === '') return 0;
+
+    $escaped = mysqli_real_escape_string($koneksi, $newName);
+    $cek = mysqli_query($koneksi, "SELECT $idField FROM $table WHERE LOWER($nameField) = LOWER('$escaped') LIMIT 1");
+    if ($cek && mysqli_num_rows($cek) > 0) {
+        $row = mysqli_fetch_assoc($cek);
+        return (int)$row[$idField];
+    }
+
+    $cols = [$nameField];
+    $vals = ["'$escaped'"];
+    foreach ($extraFields as $col => $val) {
+        $cols[] = $col;
+        $vals[] = "'" . mysqli_real_escape_string($koneksi, $val) . "'";
+    }
+    $sql = "INSERT INTO $table (" . implode(',', $cols) . ") VALUES (" . implode(',', $vals) . ")";
+    if (mysqli_query($koneksi, $sql)) {
+        return (int)mysqli_insert_id($koneksi);
+    }
+    return 0;
+}
+
+// =========================================================================
+// PROSES TAMBAH DATA
+// =========================================================================
+if (isset($_POST["submit"])) {
+    $peringkat = $_POST["peringkat"];
+    $id_lembaga = $_POST["id_lembaga"];
+    
+    // ==== HANDLE "LAINNYA" ====
+    if (!empty($_POST['peringkat_baru'])) {
+        $peringkat = trim($_POST['peringkat_baru']);
+    }
+    if (!empty($_POST['id_lembaga_baru'])) {
+        $id_lembaga = getOrCreateId($koneksi, 'lembaga', 'id_lembaga', 'nama_lembaga', $_POST['id_lembaga_baru']);
+    }
+
+    $tanggal_mulai = $_POST["tanggal_mulai"];
+    $tanggal_berakhir = $_POST["tanggal_berakhir"];                                
+    $sertifikat = '';
+
+    // Upload Sertifikat (satu file)
+    if (!empty($_FILES['sertifikat']['name'])) {
+        $uploadDir = 'uploads/sertifikat/';
+        $fileName = time() . '-' . basename($_FILES['sertifikat']['name']);
+        $filePath = $uploadDir . $fileName;
+
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $fileType = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if ($fileType == 'pdf') {
+            if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
+                $sertifikat = $filePath;
+            } else {
+                echo "<script>alert('Gagal mengupload sertifikat!');</script>";
+            }
+        } else {
+            echo "<script>alert('Hanya file dengan format pdf yang diperbolehkan untuk sertifikat!');</script>";
+        }
+    }
+
+    // Simpan data ke database
+    $sql = "INSERT INTO akreditasi_perguruan (peringkat, id_lembaga, tanggal_mulai, tanggal_berakhir, sertifikat) 
+            VALUES ('$peringkat', '$id_lembaga', '$tanggal_mulai', '$tanggal_berakhir', '$sertifikat')";
+
+    $result = mysqli_query($koneksi, $sql);
+    if ($result) {
+        echo "<script>alert('Data telah ditambahkan');
+            window.location='akre_perguruan.php';</script>";
+    } else {
+        echo "<script>alert('Data gagal ditambahkan!');
+        window.location='akre_perguruan.php';</script>";
+    }
+}
+
+// =========================================================================
+// PROSES DELETE DATA
+// =========================================================================
+if (isset($_POST["delete"])) {
+    $id_perguruan = mysqli_real_escape_string($koneksi, $_POST["id_perguruan"]);
+    $delete = mysqli_query($koneksi, "DELETE FROM akreditasi_perguruan WHERE id_perguruan='$id_perguruan'");
+
+    if ($delete) {
+        echo "<script>alert('Data Berhasil Dihapus'); window.location='akre_perguruan.php';</script>";
+    } else {
+        echo "<script>alert('Data Gagal Dihapus: " . mysqli_error($koneksi) . "'); window.location='akre_perguruan.php';</script>";
+    }
+}
+
+// =========================================================================
+// AMBIL DATA UNTUK DITAMPILKAN
+// =========================================================================
 $akreditasi_perguruan = query("
     SELECT 
         ap.id_perguruan,
@@ -23,7 +136,7 @@ $start = ($page > 1) ? ($page * $limit) - $limit : 0;
 $search = isset($_GET['nama_lembaga']) ? trim($_GET['nama_lembaga']) : '';
 if ($search !== '') {
     $akreditasi_perguruan = array_filter($akreditasi_perguruan, function ($item) use ($search) {
-        return stripos($item['nama_lembaga'], $search) !== false;
+        return stripos((string)$item['nama_lembaga'], $search) !== false;
     });
 }
 // Query untuk mendapatkan data
@@ -101,8 +214,8 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
     align-items: center;
     list-style: none;
     padding: 0;
-    margin: 15px 0; /* Margin dikurangi */
-    gap: 5px; /* Mengurangi jarak antar tombol */
+    margin: 15px 0; 
+    gap: 5px; 
     }
 
     .pagination-custom .page-item {
@@ -116,13 +229,13 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 6px 10px; /* Padding lebih kecil */
-        font-size: 12px; /* Font-size diperkecil */
+        padding: 6px 10px; 
+        font-size: 12px; 
         font-weight: 500;
         color: #0d83fd;
         background-color: white;
-        border: 1.5px solid #0d83fd; /* Border lebih tipis */
-        border-radius: 8px; /* Lebih kecil */
+        border: 1.5px solid #0d83fd; 
+        border-radius: 8px; 
         box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.08);
         transition: all 0.2s ease-in-out;
     }
@@ -148,8 +261,8 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
     }
 
     .pagination-custom .arrow {
-        font-size: 14px; /* Ukuran ikon lebih kecil */
-        padding: 6px; /* Padding lebih kecil */
+        font-size: 14px; 
+        padding: 6px; 
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -203,7 +316,24 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
     border: none;
     }
 
+    .hidden { display: none !important; }
     </style>
+
+<script>
+    function toggleLainnya(select, inputId) {
+        var input = document.getElementById(inputId);
+        if (!input) return;
+        if (select.value === 'Lainnya') {
+            input.classList.remove('hidden');
+            input.required = true;
+            input.focus();
+        } else {
+            input.classList.add('hidden');
+            input.required = false;
+            input.value = '';
+        }
+    }
+</script>
 
 </head>
 
@@ -242,7 +372,7 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                         <a href="#" class="nav-link dropdown-toggle active" data-bs-toggle="dropdown"><i class="fa fa-graduation-cap me-2"></i>Kelola Akreditasi</a>
                         <div class="dropdown-menu bg-transparent border-0">
                             <a href="akreditasi.php" class="dropdown-item">Akreditasi</a>
-                            <a href="akre_perguruan.php" class="dropdown-item">Perguruan Tinggi</a>
+                            <a href="akre_perguruan.php" class="dropdown-item active">Perguruan Tinggi</a>
                             <a href="akre_unit.php" class="dropdown-item">Unit Kerja</a>
                             <a href="akre_prodi.php" class="dropdown-item">Program Studi</a>
                         </div>
@@ -341,21 +471,21 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                         </div>
                         <!-- Pagination -->
                         <div class="showing-info text-center mb-3">
-                            Menampilkan <?php echo $start + 1; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
+                            Menampilkan <?php echo ($totalData > 0) ? $start + 1 : 0; ?> sampai <?php echo min($start + $limit, $totalData); ?> dari <?php echo $totalData; ?> data
                         </div>
 
                         <nav aria-label="Page navigation">
                             <ul class="pagination pagination-custom">
                                 <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
-                                    <a class="page-link arrow" href="?page=<?php echo $page - 1; ?>&judul=<?php echo $search; ?>" tabindex="-1">←</a>
+                                    <a class="page-link arrow" href="?page=<?php echo $page - 1; ?>&nama_lembaga=<?php echo urlencode($search); ?>" tabindex="-1">←</a>
                                 </li>
                                 <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                                 <li class="page-item <?php echo ($page == $i) ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?page=<?php echo $i; ?>&judul=<?php echo $search; ?>"><?php echo $i; ?></a>
+                                    <a class="page-link" href="?page=<?php echo $i; ?>&nama_lembaga=<?php echo urlencode($search); ?>"><?php echo $i; ?></a>
                                 </li>
                                 <?php endfor; ?>
                                 <li class="page-item <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">
-                                    <a class="page-link arrow" href="?page=<?php echo $page + 1; ?>&judul=<?php echo $search; ?>">→</a>
+                                    <a class="page-link arrow" href="?page=<?php echo $page + 1; ?>&nama_lembaga=<?php echo urlencode($search); ?>">→</a>
                                 </li>
                             </ul>
                         </nav>
@@ -366,51 +496,6 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
             <!-- End Main Content -->
 
             <!-- Modal Tambah Data -->
-            <?php
-            if (isset($_POST["submit"])) {
-                $peringkat = $_POST["peringkat"];
-                $id_lembaga = $_POST["id_lembaga"];
-                $tanggal_mulai = $_POST["tanggal_mulai"];
-                $tanggal_berakhir = $_POST["tanggal_berakhir"];                                
-                $sertifikat = '';
-
-                // Upload Sertifikat (satu file)
-                if (!empty($_FILES['sertifikat']['name'])) {
-                    $uploadDir = 'uploads/sertifikat/';
-                    $fileName = time() . '-' . basename($_FILES['sertifikat']['name']);
-                    $filePath = $uploadDir . $fileName;
-
-                    if (!is_dir($uploadDir)) {
-                        mkdir($uploadDir, 0777, true);
-                    }
-
-                    $fileType = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-                    if ($fileType == 'pdf') {
-                        if (move_uploaded_file($_FILES['sertifikat']['tmp_name'], $filePath)) {
-                            $sertifikat = $filePath;
-                        } else {
-                            echo "<script>alert('Gagal mengupload sertifikat!');</script>";
-                        }
-                    } else {
-                        echo "<script>alert('Hanya file dengan format pdf yang diperbolehkan untuk sertifikat!');</script>";
-                    }
-                }
-
-                // Simpan data ke database
-                $sql = "INSERT INTO akreditasi_perguruan (peringkat, id_lembaga, tanggal_mulai, tanggal_berakhir, sertifikat) 
-                        VALUES ('$peringkat', '$id_lembaga', '$tanggal_mulai', '$tanggal_berakhir', '$sertifikat')";
-
-                $result = mysqli_query($koneksi, $sql);
-                if ($result) {
-                    echo "<script>alert('Data telah ditambahkan');
-                        window.location='akre_perguruan.php';</script>";
-                } else {
-                    echo "<script>alert('Data gagal ditambahkan!');
-                    window.location='akre_perguruan.php';</script>";
-                }
-            }
-            ?>
-
             <div class="modal fade" id="modalTambah" tabindex="-1" aria-labelledby="modalTambahLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -422,7 +507,8 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                         <div class="modal-body">
                                 <div class="mb-3">
                                     <label for="peringkat" class="form-label">Peringkat</label>
-                                    <select class="form-select" name="peringkat" id="peringkat" required>
+                                    <!-- KEMBALI KE SELECT BIASA (TANPA SELECTPICKER) -->
+                                    <select class="form-select" name="peringkat" id="peringkat" required onchange="toggleLainnya(this, 'peringkat_baru')">
                                         <option value="" selected disabled>-- Pilih Peringkat --</option>
                                         <option value="Unggul">Unggul</option>
                                         <option value="Baik Sekali">Baik Sekali</option>
@@ -430,19 +516,24 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                                         <option value="Cukup Sekali">Cukup Sekali</option>
                                         <option value="Cukup">Cukup</option>
                                         <option value="Belum Ada Peringkat">Belum Ada Peringkat</option>
+                                        <option value="Lainnya">+ Lainnya (Ketik Manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="peringkat_baru" id="peringkat_baru" placeholder="Ketik peringkat baru...">
                                 </div>
                                 <div class="mb-3" id="id_lembaga">
                                     <label for="id_lembaga" class="form-label">Lembaga</label>
-                                    <select class="form-select" name="id_lembaga">
+                                    <!-- KEMBALI KE SELECT BIASA (TANPA SELECTPICKER) -->
+                                    <select class="form-select" name="id_lembaga" id="id_lembaga" onchange="toggleLainnya(this, 'lembaga_baru')">
                                         <option value="0" selected disabled>-- Pilih Lembaga --</option>
                                         <?php
                                             $ambil = mysqli_query($koneksi,"SELECT * FROM lembaga");
                                             while ($data = mysqli_fetch_assoc($ambil)){
-                                                echo '<option value="'.$data['id_lembaga'].'">'.$data['nama_lembaga'].'</option>';
+                                                echo '<option value="'.$data['id_lembaga'].'">'.strtoupper($data['nama_lembaga']).'</option>';
                                             }
                                         ?>
+                                        <option value="Lainnya">+ Lainnya (Ketik Manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="id_lembaga_baru" id="lembaga_baru" placeholder="Ketik nama lembaga baru...">
                                 </div>
                                 <div class="mb-3">
                                     <label for="tanggal_mulai" class="form-label">Tanggal Mulai</label>
@@ -466,21 +557,7 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
             </div>
 
             <?php foreach ($akreditasi_perguruan as $row): ?>
-
             <!-- Modal Delete -->
-            <?php
-            if (isset($_POST["delete"])) {
-                $id_perguruan = mysqli_real_escape_string($koneksi, $_POST["id_perguruan"]);
-                $delete = mysqli_query($koneksi, "DELETE FROM akreditasi_perguruan WHERE id_perguruan='$id_perguruan'");
-            
-                if ($delete) {
-                    echo "<script>alert('Data Berhasil Dihapus'); window.location='akre_perguruan.php';</script>";
-                } else {
-                    echo "<script>alert('Data Gagal Dihapus: " . mysqli_error($koneksi) . "'); window.location='akre_perguruan.php';</script>";
-                }
-            }            
-            ?>
-
             <div class="modal fade" id="modalDelete<?php echo $row['id_perguruan']; ?>" tabindex="-1" aria-labelledby="modalDeleteLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -500,7 +577,6 @@ $akreditasi_perguruan = array_slice($akreditasi_perguruan, $start, $limit);
                     </div>
                 </div>
             </div>
-
             <?php endforeach; ?>
 
             <!-- Footer -->
