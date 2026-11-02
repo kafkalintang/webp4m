@@ -798,7 +798,7 @@ foreach ($akreditasi_paged as $row) {
                                         <option value="Unggul">Unggul</option>
                                         <option value="Baik Sekali">Baik Sekali</option>
                                         <option value="Baik">Baik</option>
-                                        <option value="Cukup Sekali">Cukup Sekali</option>
+                                        <option value="Cukup Sekali">Terakreditasi</option>
                                         <option value="Cukup">Cukup</option>
                                     </select>
                                 </div>

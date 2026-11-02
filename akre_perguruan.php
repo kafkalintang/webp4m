@@ -109,6 +109,55 @@ $akreditasi_perguruan = query("SELECT ap.*, l.nama_lembaga
       text-align: center;
       margin-bottom: 10px;
     }
+
+    /* ========================================= */
+    /* STYLING KHUSUS UNTUK KOTAK SERTIFIKAT     */
+    /* ========================================= */
+    .sertifikat-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center; /* Biar kotak ada di tengah */
+    }
+
+    .file-box {
+        display: flex;
+        align-items: center;
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 6px 12px;
+        width: 100%;
+        max-width: 350px; 
+        color: #333;
+        text-decoration: none;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .file-box:hover {
+        background-color: #f8f9fa;
+        border-color: #0d83fd;
+        color: #0d83fd;
+        text-decoration: none;
+        box-shadow: 0 2px 6px rgba(13, 131, 253, 0.15);
+        transform: translateY(-1px);
+    }
+
+    /* Icon dokumen abu-abu netral */
+    .file-box i {
+        color: #6c757d; 
+        font-size: 16px;
+        margin-right: 10px;
+    }
+
+    .file-box span {
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+    }
   </style>
 
 </head>
@@ -175,50 +224,102 @@ $akreditasi_perguruan = query("SELECT ap.*, l.nama_lembaga
 
       <div class="container">
         <!-- bagian isi tabel -->
+        <?php 
+        // LOGIKA GROUPING UNTUK HALAMAN PUBLIC
+        $grouped_data = [];
+        foreach ($akreditasi_perguruan as $row) {
+            // Kunci unik berdasarkan Peringkat dan Lembaga
+            $key = $row['peringkat'] . '|' . $row['id_lembaga'];
+            
+            if (!isset($grouped_data[$key])) {
+                $grouped_data[$key] = [
+                    'peringkat' => $row['peringkat'],
+                    'nama_lembaga' => $row['nama_lembaga'],
+                    'details' => []
+                ];
+            }
+            
+            // Pecah tanggal dan sertifikat
+            $tgl_mulai_arr = !empty($row['tanggal_mulai']) ? explode('|', $row['tanggal_mulai']) : [];
+            $tgl_berakhir_arr = !empty($row['tanggal_berakhir']) ? explode('|', $row['tanggal_berakhir']) : [];
+            $sertifikat_arr = !empty($row['sertifikat']) ? explode(',', $row['sertifikat']) : [];
+            
+            // Gabungkan ke dalam array details
+            $grouped_data[$key]['details'][] = [
+                'tgl_mulai_arr' => $tgl_mulai_arr,
+                'tgl_berakhir_arr' => $tgl_berakhir_arr,
+                'sertifikats' => $sertifikat_arr
+            ];
+        }
+        ?>
 
-                        <!-- Table -->
-                        <div class="table-responsive">
-                            <table class="table table-hover table-custom">
-                            <thead>
-                                <tr>
-                                <th>No</th>
-                                <th>Peringkat</th>
-                                <th>Lembaga</th>
-                                <th>Tanggal Mulai</th>
-                                <th>Tanggal Berakhir</th>
-                                <th>Sertifikat</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($akreditasi_perguruan)): ?>
-                                <?php $id=1; ?>
-                                <?php foreach ($akreditasi_perguruan as $row): ?>
-                                <tr>
-                                    <td><?php echo $id; ?></td>
-                                    <td><?php echo $row["peringkat"]; ?></td>
-                                    <td><?php echo $row["nama_lembaga"]; ?></td>
-                                    <td><?php echo $row["tanggal_mulai"]; ?></td>
-                                    <td><?php echo $row["tanggal_berakhir"]; ?></td>
-                                    <td>
-                                    <?php if (!empty($row['sertifikat'])): ?>
-                                        <a href="admin/<?php echo $row['sertifikat']; ?>" target="_blank" class="btn btn-icon btn-info">
-                                            <i class="fas fa-eye"></i> View
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-hover table-custom">
+            <thead>
+                <tr>
+                <th width="5%">No</th>
+                <th>Peringkat</th>
+                <th>Lembaga</th>
+                <th>Tanggal Mulai</th>
+                <th>Tanggal Berakhir</th>
+                <th>Sertifikat</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (!empty($grouped_data)): ?>
+                <?php $id = 1; ?>
+                <?php foreach ($grouped_data as $group): ?>
+                    <?php 
+                        // Ambil tanggal terbaru (index paling akhir)
+                        $last_detail = end($group['details']);
+                        $tgl_mulai_terbaru = !empty($last_detail['tgl_mulai_arr']) ? end($last_detail['tgl_mulai_arr']) : '-';
+                        $tgl_berakhir_terbaru = !empty($last_detail['tgl_berakhir_arr']) ? end($last_detail['tgl_berakhir_arr']) : '-';
+                        
+                        // Gabungkan semua sertifikat dari semua detail (riwayat) menjadi satu array
+                        $semua_sertifikat = [];
+                        foreach ($group['details'] as $detail) {
+                            if (!empty($detail['sertifikats'])) {
+                                $semua_sertifikat = array_merge($semua_sertifikat, $detail['sertifikats']);
+                            }
+                        }
+                        // Hapus duplikat
+                        $semua_sertifikat = array_unique($semua_sertifikat);
+                        
+                        // Urutkan dari yang paling baru
+                        $semua_sertifikat = array_reverse($semua_sertifikat);
+                    ?>
+                    <tr>
+                        <td><?php echo $id++; ?></td>
+                        <td><?php echo htmlspecialchars($group["peringkat"]); ?></td>
+                        <td><?php echo htmlspecialchars($group["nama_lembaga"]); ?></td>
+                        <td><?php echo htmlspecialchars(trim($tgl_mulai_terbaru)); ?></td>
+                        <td><?php echo htmlspecialchars(trim($tgl_berakhir_terbaru)); ?></td>
+                        <td>
+                            <?php if (!empty($semua_sertifikat)): ?>
+                                <div class="sertifikat-container">
+                                    <?php foreach ($semua_sertifikat as $pdf): ?>
+                                        <a href="admin/<?php echo htmlspecialchars(trim($pdf)); ?>" target="_blank" class="file-box">
+                                            <!-- ICON DOKUMEN BIASA -->
+                                            <i class="fas fa-file-alt"></i> 
+                                            <span><?php echo htmlspecialchars(basename(trim($pdf))); ?></span>
                                         </a>
-                                    <?php else: ?>
-                                        <span class="text-muted">No File</span>
-                                    <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php $id++; ?>
-                                <?php endforeach; ?>
-                                <?php else: ?>
-                                <tr>
-                                    <td colspan="10">Tidak ada data yang tersedia.</td>
-                                </tr>
-                                <?php endif; ?>
-                            </tbody>
-                            </table>
-                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <span class="text-muted">No File</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php else: ?>
+                <tr>
+                    <td colspan="6" class="text-center">Tidak ada data yang tersedia.</td>
+                </tr>
+                <?php endif; ?>
+            </tbody>
+            </table>
+        </div>
 
       </div>
 
