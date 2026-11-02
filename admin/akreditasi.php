@@ -63,6 +63,22 @@ function normalizeJurusan($koneksi, $nama_jurusan, $id_prodi)
     return $nama_jurusan;
 }
 
+/**
+ * Ambil nilai predikat dari form.
+ * Jika user memilih "Lainnya", pakai teks yang diketik manual.
+ *
+ * @param mysqli $koneksi Koneksi database
+ * @return string Predikat yang sudah di-trim dan di-escape (kosong jika tidak valid)
+ */
+function resolvePeringkat($koneksi)
+{
+    $peringkat = isset($_POST['peringkat']) ? trim($_POST['peringkat']) : '';
+    if ($peringkat === 'Lainnya') {
+        $peringkat = isset($_POST['peringkat_baru']) ? trim($_POST['peringkat_baru']) : '';
+    }
+    return mysqli_real_escape_string($koneksi, $peringkat);
+}
+
 // =========================================================================
 // PROSES TAMBAH DATA
 // =========================================================================
@@ -71,9 +87,14 @@ if (isset($_POST["submit"])) {
     $id_unit = (isset($_POST["id_unit"]) && $_POST["id_unit"] !== "0") ? (int)$_POST["id_unit"] : 0;
     $nama_jurusan = (isset($_POST["nama_jurusan"]) && $_POST["nama_jurusan"] !== "0") ? $_POST["nama_jurusan"] : "";
     $id_prodi = (isset($_POST["id_prodi"]) && $_POST["id_prodi"] !== "0") ? (int)$_POST["id_prodi"] : 0;
-    $peringkat = $_POST["peringkat"];
+    $peringkat = resolvePeringkat($koneksi);
     $id_lembaga = (isset($_POST["id_lembaga"]) && $_POST["id_lembaga"] !== "0") ? (int)$_POST["id_lembaga"] : 0;
     $id_jenis = (isset($_POST["id_jenis"]) && $_POST["id_jenis"] !== "0") ? (int)$_POST["id_jenis"] : 0;
+
+    if ($peringkat === '') {
+        echo "<script>alert('Predikat tidak boleh kosong!'); window.location='akreditasi.php'</script>";
+        exit;
+    }
 
     // ==== HANDLE "LAINNYA" ====
     if (!empty($_POST['id_unit_baru'])) {
@@ -141,9 +162,14 @@ if (isset($_POST["update"])) {
     $id_unit = (isset($_POST["id_unit"]) && $_POST["id_unit"] !== "0") ? (int)$_POST["id_unit"] : 0;
     $nama_jurusan = (isset($_POST["nama_jurusan"]) && $_POST["nama_jurusan"] !== "0") ? $_POST["nama_jurusan"] : "";
     $id_prodi = (isset($_POST["id_prodi"]) && $_POST["id_prodi"] !== "0") ? (int)$_POST["id_prodi"] : 0;
-    $peringkat = $_POST["peringkat"];
+    $peringkat = resolvePeringkat($koneksi);
     $id_lembaga = (isset($_POST["id_lembaga"]) && $_POST["id_lembaga"] !== "0") ? (int)$_POST["id_lembaga"] : 0;
     $id_jenis = (isset($_POST["id_jenis"]) && $_POST["id_jenis"] !== "0") ? (int)$_POST["id_jenis"] : 0;
+
+    if ($peringkat === '') {
+        echo "<script>alert('Predikat tidak boleh kosong!'); window.location='akreditasi.php'</script>";
+        exit;
+    }
 
     // ==== HANDLE "LAINNYA" ====
     if (!empty($_POST['id_unit_baru'])) {
@@ -192,6 +218,10 @@ if (isset($_POST["update"])) {
     if ($tanggal_mulai !== $last_tgl_mulai || $tanggal_berakhir !== $last_tgl_berakhir) {
         $tanggal_mulai = $d_lama['tanggal_mulai'] . '|' . $tanggal_mulai;
         $tanggal_berakhir = $d_lama['tanggal_berakhir'] . '|' . $tanggal_berakhir;
+    } else {
+        // Tanggal tidak berubah: pertahankan seluruh riwayat lama
+        $tanggal_mulai = $d_lama['tanggal_mulai'];
+        $tanggal_berakhir = $d_lama['tanggal_berakhir'];
     }
 
     // Upload Sertifikat Baru (PDF)
@@ -238,6 +268,23 @@ if (isset($_POST["delete"])) {
         echo "<script>alert('Data Berhasil Dihapus'); window.location='akreditasi.php';</script>";
     } else {
         echo "<script>alert('Data Gagal Dihapus: " . mysqli_error($koneksi) . "'); window.location='akreditasi.php';</script>";
+    }
+}
+
+// =========================================================================
+// DAFTAR PREDIKAT (BAWAAN + YANG PERNAH DIKETIK MANUAL DI DATABASE)
+// =========================================================================
+$opsi_peringkat = ['Unggul', 'Baik Sekali', 'Baik', 'Terakreditasi', 'Belum terakreditasi'];
+$q_peringkat = mysqli_query($koneksi, "SELECT DISTINCT peringkat FROM akreditasi WHERE peringkat <> '' AND peringkat IS NOT NULL ORDER BY peringkat");
+if ($q_peringkat) {
+    while ($r_p = mysqli_fetch_assoc($q_peringkat)) {
+        $sudah_ada = false;
+        foreach ($opsi_peringkat as $o) {
+            if (strcasecmp($o, $r_p['peringkat']) === 0) { $sudah_ada = true; break; }
+        }
+        if (!$sudah_ada && strcasecmp($r_p['peringkat'], 'Lainnya') !== 0) {
+            $opsi_peringkat[] = $r_p['peringkat'];
+        }
     }
 }
 
@@ -453,7 +500,7 @@ foreach ($akreditasi_paged as $row) {
 
     function editData(data) {
         // Reset input "Lainnya"
-        ['edit_unit_baru','edit_jurusan_baru','edit_prodi_baru','edit_lembaga_baru','edit_jenis_baru'].forEach(function(id){
+        ['edit_unit_baru','edit_jurusan_baru','edit_prodi_baru','edit_lembaga_baru','edit_jenis_baru','edit_peringkat_baru'].forEach(function(id){
             var el = document.getElementById(id);
             if (el) { el.value = ''; el.classList.add('hidden'); el.required = false; }
         });
@@ -466,7 +513,19 @@ foreach ($akreditasi_paged as $row) {
         document.getElementById('edit_tanggal_mulai').value = tglMulaiArr[tglMulaiArr.length - 1];
         document.getElementById('edit_tanggal_berakhir').value = tglBerakhirArr[tglBerakhirArr.length - 1];
 
-        document.getElementById('edit_peringkat').value = data.peringkat;
+        // Set predikat; jika nilainya belum ada di dropdown, tambahkan otomatis
+        var selPeringkat = document.getElementById('edit_peringkat');
+        var adaPeringkat = false;
+        for (var p = 0; p < selPeringkat.options.length; p++) {
+            if (selPeringkat.options[p].value === data.peringkat) { adaPeringkat = true; break; }
+        }
+        if (!adaPeringkat && data.peringkat) {
+            var optBaru = new Option(data.peringkat, data.peringkat);
+            // Sisipkan sebelum opsi "Lainnya" (opsi terakhir)
+            selPeringkat.add(optBaru, selPeringkat.options[selPeringkat.options.length - 1]);
+        }
+        selPeringkat.value = data.peringkat;
+
         document.getElementById('edit_id_lembaga').value = data.id_lembaga;
         document.getElementById('edit_id_jenis').value = data.id_jenis;
 
@@ -604,7 +663,7 @@ foreach ($akreditasi_paged as $row) {
                                                     <?php if ($index == 0): ?>
                                                         <td rowspan="<?php echo $rowspan; ?>"><?php echo $no++; ?></td>
                                                         <td rowspan="<?php echo $rowspan; ?>"><?= !empty($group['nama_unit_kerja']) ? $group['nama_unit_kerja'] : "-" ?></td>
-                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["peringkat"]; ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo htmlspecialchars($group["peringkat"]); ?></td>
                                                         <td rowspan="<?php echo $rowspan; ?>"><?php echo strtoupper($group["nama_lembaga"]); ?></td>
                                                         <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["jenis_akreditasi"]; ?></td>
                                                     <?php endif; ?>
@@ -677,7 +736,7 @@ foreach ($akreditasi_paged as $row) {
                                                         <td rowspan="<?php echo $rowspan; ?>"><?php echo $no++; ?></td>
                                                         <td rowspan="<?php echo $rowspan; ?>"><?= !empty($group['nama_jurusan']) ? $group['nama_jurusan'] : "-" ?></td>
                                                         <td rowspan="<?php echo $rowspan; ?>"><?= !empty($group['nama_program_studi']) ? $group['nama_program_studi'] : "-" ?></td>
-                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["peringkat"]; ?></td>
+                                                        <td rowspan="<?php echo $rowspan; ?>"><?php echo htmlspecialchars($group["peringkat"]); ?></td>
                                                         <td rowspan="<?php echo $rowspan; ?>"><?php echo strtoupper($group["nama_lembaga"]); ?></td>
                                                         <td rowspan="<?php echo $rowspan; ?>"><?php echo $group["jenis_akreditasi"]; ?></td>
                                                     <?php endif; ?>
@@ -793,14 +852,14 @@ foreach ($akreditasi_paged as $row) {
                                 </div>
                                 <div class="mb-3">
                                     <label for="peringkat" class="form-label">Predikat</label>
-                                    <select class="form-select" name="peringkat" id="peringkat" required>
+                                    <select class="form-select" name="peringkat" id="peringkat" required onchange="toggleLainnya(this, 'peringkat_baru_tambah')">
                                         <option value="" selected disabled>-- Pilih Predikat --</option>
-                                        <option value="Unggul">Unggul</option>
-                                        <option value="Baik Sekali">Baik Sekali</option>
-                                        <option value="Baik">Baik</option>
-                                        <option value="Cukup Sekali">Terakreditasi</option>
-                                        <option value="Cukup">Cukup</option>
+                                        <?php foreach ($opsi_peringkat as $opt_p): ?>
+                                            <option value="<?php echo htmlspecialchars($opt_p, ENT_QUOTES); ?>"><?php echo htmlspecialchars($opt_p); ?></option>
+                                        <?php endforeach; ?>
+                                        <option value="Lainnya">Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="peringkat_baru" id="peringkat_baru_tambah" placeholder="Ketik predikat baru...">
                                 </div>
                                 <div class="mb-3" id="id_lembaga">
                                     <label for="id_lembaga" class="form-label">Lembaga</label>
@@ -897,13 +956,13 @@ foreach ($akreditasi_paged as $row) {
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_peringkat" class="form-label">Predikat</label>
-                                    <select class="form-select" name="peringkat" id="edit_peringkat" required>
-                                        <option value="Unggul">Unggul</option>
-                                        <option value="Baik Sekali">Baik Sekali</option>
-                                        <option value="Baik">Baik</option>
-                                        <option value="Cukup Sekali">Cukup Sekali</option>
-                                        <option value="Cukup">Cukup</option>
+                                    <select class="form-select" name="peringkat" id="edit_peringkat" required onchange="toggleLainnya(this, 'edit_peringkat_baru')">
+                                        <?php foreach ($opsi_peringkat as $opt_p): ?>
+                                            <option value="<?php echo htmlspecialchars($opt_p, ENT_QUOTES); ?>"><?php echo htmlspecialchars($opt_p); ?></option>
+                                        <?php endforeach; ?>
+                                        <option value="Lainnya">Lainnya (ketik manual)</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2 hidden" name="peringkat_baru" id="edit_peringkat_baru" placeholder="Ketik predikat baru...">
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_id_lembaga" class="form-label">Lembaga</label>
